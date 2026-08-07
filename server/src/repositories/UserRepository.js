@@ -28,14 +28,9 @@ class UserRepository extends BaseRepository {
     return UserRepository.modelForRole(role);
   }
 
-  sanitizedModel(role) {
-    const M = UserRepository.modelForRole(role);
-    return M ? M.select('+password +refreshToken') : null;
-  }
-
   async findByEmail(email) {
     for (const role of Object.values(USER_ROLES)) {
-      const M = this.sanitizedModel(role);
+      const M = UserRepository.modelForRole(role);
       if (!M) continue;
       const user = await M.findOne({ email }).select('+password +refreshToken');
       if (user) return user;
@@ -46,7 +41,7 @@ class UserRepository extends BaseRepository {
   async findByIdAcrossRoles(id) {
     if (!mongoose.Types.ObjectId.isValid(id)) return null;
     for (const role of Object.values(USER_ROLES)) {
-      const M = this.sanitizedModel(role);
+      const M = UserRepository.modelForRole(role);
       if (!M) continue;
       const user = await M.findById(id).select('+password +refreshToken');
       if (user) return user;

@@ -10,7 +10,7 @@ class KitchenService {
   async queue(restaurantId) {
     const orders = await Order.find({
       restaurant: restaurantId,
-      status: { $in: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.PREPARING] },
+      status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED, ORDER_STATUS.PREPARING] },
     })
       .sort({ placedAt: 1, createdAt: 1 })
       .limit(60)
@@ -80,10 +80,10 @@ class KitchenService {
 
   async stats(restaurantId) {
     const [pending, preparing, ready, total] = await Promise.all([
-      Order.countDocuments({ restaurant: restaurantId, status: ORDER_STATUS.CONFIRMED }),
+      Order.countDocuments({ restaurant: restaurantId, status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED] } }),
       Order.countDocuments({ restaurant: restaurantId, status: ORDER_STATUS.PREPARING }),
       Order.countDocuments({ restaurant: restaurantId, status: ORDER_STATUS.READY }),
-      Order.countDocuments({ restaurant: restaurantId, status: { $in: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.PREPARING, ORDER_STATUS.READY] } }),
+      Order.countDocuments({ restaurant: restaurantId, status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED, ORDER_STATUS.PREPARING] } }),
     ]);
     return { pending, preparing, ready, total };
   }

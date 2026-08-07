@@ -44,6 +44,7 @@ const CartSchema = new Schema(
 );
 
 CartSchema.methods.applyCoupon = function (coupon, subtotal) {
+  if (!coupon || !coupon.discountType || coupon.discountValue == null) return 0;
   let discount = 0;
   if (coupon.discountType === 'percentage') {
     discount = (subtotal * coupon.discountValue) / 100;
@@ -52,7 +53,7 @@ CartSchema.methods.applyCoupon = function (coupon, subtotal) {
     discount = Math.min(coupon.discountValue, subtotal);
   }
   this.appliedCoupon = {
-    code: coupon.code,
+    code: coupon.code || '',
     discountType: coupon.discountType,
     discountValue: coupon.discountValue,
     maxDiscount: coupon.maxDiscount || 0,
@@ -61,14 +62,14 @@ CartSchema.methods.applyCoupon = function (coupon, subtotal) {
 };
 
 CartSchema.methods.calculateTotals = function (taxRate = 0, serviceChargeRate = 0) {
-  const subtotal = this.items.reduce((sum, it) => sum + (it.lineTotal || 0), 0);
+  const subtotal = this.items.reduce((sum, it) => sum + (it.lineTotal || 0), 0) || 0;
   let discountTotal = 0;
-  if (this.appliedCoupon) {
-    discountTotal = this.applyCoupon(this.appliedCouponAsObject(), subtotal);
+  if (this.appliedCoupon && this.appliedCoupon.discountType != null) {
+    discountTotal = this.applyCoupon(this.appliedCoupon, subtotal);
   }
   const taxable = Math.max(0, subtotal - discountTotal);
-  const tax = Math.round(taxable * taxRate * 100) / 100;
-  const serviceCharge = Math.round(subtotal * serviceChargeRate * 100) / 100;
+  const tax = Math.round(taxable * (taxRate || 0) * 100) / 100;
+  const serviceCharge = Math.round(subtotal * (serviceChargeRate || 0) * 100) / 100;
   const grandTotal = Math.round((taxable + tax + serviceCharge) * 100) / 100;
   const itemCount = this.items.reduce((sum, it) => sum + it.quantity, 0);
 

@@ -50,5 +50,4 @@ RestaurantSchema.pre('save', function (next) {
   next();
 });
 
-RestaurantSchema.index({ slug: 1 });
 export default model('Restaurant', RestaurantSchema);

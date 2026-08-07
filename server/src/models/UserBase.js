@@ -59,8 +59,6 @@ export function createUserBaseSchema(extraFields = {}, extraOptions = {}) {
     }
   );
 
-  schema.index({ email: 1 });
-
   schema.methods.comparePassword = async function (candidate) {
     if (!this.password) return false;
     return bcrypt.compare(candidate, this.password);
