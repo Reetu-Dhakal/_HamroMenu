@@ -116,4 +116,13 @@ router.get('/admin/:restaurantId/qrcodes', auth, staffAdminController.listQR);
 router.get('/restaurants/:restaurantId/tables/:tableId/qr', auth, restaurantController.qrForTable);
 router.post('/restaurants/:restaurantId/tables/:tableId/qr/regenerate', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.STAFF), restaurantController.regenerateQR);
 
+// Admin menu management
+router.post('/admin/restaurants/:restaurantId/categories', auth, authorize(USER_ROLES.ADMIN), menuController.addCategory);
+router.patch('/admin/categories/:id', auth, authorize(USER_ROLES.ADMIN), menuController.updateCategory);
+router.delete('/admin/categories/:id', auth, authorize(USER_ROLES.ADMIN), menuController.removeCategory);
+router.post('/admin/restaurants/:restaurantId/items', auth, authorize(USER_ROLES.ADMIN), menuController.addItem);
+router.put('/admin/items/:id', auth, authorize(USER_ROLES.ADMIN), menuController.updateItem);
+router.patch('/admin/items/:id/availability', auth, authorize(USER_ROLES.ADMIN), menuController.toggleAvailability);
+router.delete('/admin/items/:id', auth, authorize(USER_ROLES.ADMIN), menuController.removeItem);
+
 export default router;

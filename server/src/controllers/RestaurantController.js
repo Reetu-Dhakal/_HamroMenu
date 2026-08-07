@@ -16,8 +16,7 @@ class RestaurantController {
 
   async getById(req, res, next) {
     asyncHandler(async () => {
-      const restaurant = await restaurantRepository.findById(req.params.restaurantId);
-      if (!restaurant) throw new ApiError(404, 'Restaurant not found');
+      const restaurant = await menuService.getRestaurant(req.params.restaurantId);
       return ApiResponse.send(res, 200, restaurant);
     })(req, res, next);
   }
