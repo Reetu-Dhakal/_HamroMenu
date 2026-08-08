@@ -44,7 +44,6 @@ function OrderCore() {
       <OrderTracker
         order={orders.active}
         restaurantId={rid}
-        table={orders.table}
         onDone={() => {
           localStorage.removeItem('hm.activeOrder');
           setActiveOrderId(null);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Plus, QrCode, Download, RefreshCw, Trash2, Check } from 'lucide-react';
+import { Plus, QrCode, Download, RefreshCw } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import RoleGuard from '@/components/RoleGuard';

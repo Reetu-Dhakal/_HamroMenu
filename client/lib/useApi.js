@@ -14,7 +14,7 @@ export function useApi(fetcher, deps = [], { enabled = true } = {}) {
       setError(null);
       try {
         const result = await fetcher(...args);
-        setData(result);
+        setData(result?.data ?? result);
         return result;
       } catch (err) {
         setError(err);

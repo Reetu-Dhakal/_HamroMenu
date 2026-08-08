@@ -4,8 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   QrCode,
-  ShoppingBag,
-  Star,
   Sparkles,
   ChevronRight,
   ScanLine,
@@ -13,6 +11,9 @@ import {
   ChefHat,
   Bell,
   ArrowRight,
+  LayoutDashboard,
+  ClipboardList,
+  Settings,
 } from 'lucide-react';
 import SiteNav from '@/components/SiteNav';
 import Footer from '@/components/Footer';
@@ -20,6 +21,9 @@ import { useRestaurant, useMenu } from '@/lib/useApi';
 import { formatCurrency } from '@/lib/format';
 
 const SEED_SLUG = process.env.NEXT_PUBLIC_RESTAURANT_ID || 'himalayan-flavors';
+
+const FALLBACK_DISH =
+  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=300&fit=crop&auto=format&q=70';
 
 export default function HomePage() {
   const restaurant = useRestaurant(SEED_SLUG);
@@ -66,27 +70,103 @@ export default function HomePage() {
             </div>
 
             <div className="relative mx-auto w-full max-w-md">
-              <div className="relative rounded-3xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
-                <div className="relative aspect-[4/5] overflow-hidden rounded-2xl">
-                  <Image
-                    src={hero?.coverUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=900&h=1125&fit=crop&auto=format&q=75'}
-                    alt="Signature dishes"
-                    fill
-                    className="object-cover"
-                    sizes="(max-width:768px) 100vw, 480px"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 via-transparent" />
-                  <div className="absolute inset-x-4 bottom-4">
-                    <span className="badge bg-clay-600 text-white">Featured</span>
-                    {featured[0] && (
-                      <>
-                        <p className="mt-2 font-display text-xl font-semibold text-white">{featured[0].name}</p>
-                        <p className="text-sm text-white/80">{formatCurrency(featured[0].price, hero?.currency)}</p>
-                      </>
-                    )}
+              {/* Phone with QR, floating on the laptop */}
+              <div className="absolute -bottom-10 -right-4 z-20 w-36 rotate-3 rounded-[2rem] border-4 border-ink-950 bg-cream shadow-2xl sm:-right-9">
+                {/* dynamic island */}
+                <div className="flex justify-center pt-2">
+                  <span className="h-3.5 w-16 rounded-full bg-ink-950" />
+                </div>
+                {/* status bar */}
+                <div className="flex items-center justify-between px-4 pb-1 text-[7px] font-semibold text-ink-700">
+                  <span>9:41</span>
+                  <span>●●●</span>
+                </div>
+                {/* scanner screen */}
+                <div className="mx-2 rounded-[1.4rem] bg-ink-950 px-3 pb-3 pt-4">
+                  <p className="text-center text-[9px] font-semibold text-white">Scan your table</p>
+                  <p className="mt-0.5 text-center text-[6.5px] text-white/60">Point your camera at the QR</p>
+                  <div className="relative mx-auto mt-3 w-full max-w-[9rem] rounded-2xl bg-white p-3">
+                    <span className="absolute left-1.5 top-1.5 h-3 w-3 rounded-tl border-l-2 border-t-2 border-clay-600" />
+                    <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-tr border-r-2 border-t-2 border-clay-600" />
+                    <span className="absolute bottom-1.5 left-1.5 h-3 w-3 rounded-bl border-b-2 border-l-2 border-clay-600" />
+                    <span className="absolute bottom-1.5 right-1.5 h-3 w-3 rounded-br border-b-2 border-r-2 border-clay-600" />
+                    <MiniQR size={21} />
                   </div>
                 </div>
+                {/* home indicator */}
+                <div className="flex justify-center py-2">
+                  <span className="h-1 w-12 rounded-full bg-ink-950/60" />
+                </div>
+              </div>
+
+              {/* Laptop mockup of the dashboard */}
+              <div className="animate-fade-in">
+                <div className="overflow-hidden rounded-t-2xl border border-ink-900/10 bg-ink-950 p-2 shadow-2xl">
+                  <div className="overflow-hidden rounded-xl bg-cream">
+                    {/* browser bar */}
+                    <div className="flex items-center gap-1.5 border-b border-ink-900/5 bg-surface px-3 py-2">
+                      <span className="h-2 w-2 rounded-full bg-red-400" />
+                      <span className="h-2 w-2 rounded-full bg-yellow-400" />
+                      <span className="h-2 w-2 rounded-full bg-green-400" />
+                      <span className="ml-2 rounded-md bg-ink-900/5 px-2 py-0.5 text-[8px] font-medium text-ink-500">
+                        {hero?.name || 'Himalayan Flavors'} / overview
+                      </span>
+                    </div>
+
+                    <div className="flex">
+                      {/* sidebar */}
+                      <div className="w-16 shrink-0 border-r border-ink-900/5 bg-surface px-2 py-3 sm:w-20">
+                        <div className="relative mx-auto h-6 w-6 overflow-hidden rounded-lg bg-ink-900/5">
+                          <Image src={hero?.logoUrl || FALLBACK_DISH} alt="" fill className="object-cover" sizes="24px" />
+                        </div>
+                        <div className="mt-4 space-y-1.5">
+                          <span className="flex h-7 items-center justify-center rounded-lg bg-ink-950 text-cream"><LayoutDashboard className="h-3.5 w-3.5" /></span>
+                          <span className="flex h-7 items-center justify-center rounded-lg text-ink-400"><ClipboardList className="h-3.5 w-3.5" /></span>
+                          <span className="flex h-7 items-center justify-center rounded-lg text-ink-400"><UtensilsCrossed className="h-3.5 w-3.5" /></span>
+                          <span className="flex h-7 items-center justify-center rounded-lg text-ink-400"><QrCode className="h-3.5 w-3.5" /></span>
+                          <span className="flex h-7 items-center justify-center rounded-lg text-ink-400"><Settings className="h-3.5 w-3.5" /></span>
+                        </div>
+                      </div>
+
+                      {/* main panel */}
+                      <div className="min-w-0 flex-1 p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] font-semibold text-ink-950">Overview</p>
+                            <p className="text-[8px] text-ink-500">Live dashboard</p>
+                          </div>
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-clay-600 text-[9px] font-bold text-white">
+                            {(hero?.name || 'H').charAt(0)}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-3 gap-1.5">
+                          <div className="rounded-xl bg-white p-2 shadow-soft">
+                            <p className="text-[8px] text-ink-500">Revenue</p>
+                            <p className="font-display text-[11px] font-semibold text-ink-950">NPR 24.5k</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 shadow-soft">
+                            <p className="text-[8px] text-ink-500">Orders</p>
+                            <p className="font-display text-[11px] font-semibold text-ink-950">42 today</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 shadow-soft">
+                            <p className="text-[8px] text-ink-500">Tables</p>
+                            <p className="font-display text-[11px] font-semibold text-ink-950">8 / 12</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 space-y-1">
+                          <OrderRow no="#1042" table="Table 4" item={featured[0]?.name || 'Chicken Momo'} status="Pending" tone="bg-amber-100 text-amber-700" />
+                          <OrderRow no="#1041" table="Table 1" item="Dal Bhat Power Set" status="Preparing" tone="bg-sky-100 text-sky-700" />
+                          <OrderRow no="#1040" table="Takeaway" item="Chicken Chowmein" status="Ready" tone="bg-emerald-100 text-emerald-700" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* laptop base */}
+                <div className="mx-auto h-3 w-[103%] rounded-b-2xl bg-gradient-to-b from-ink-800 to-ink-950" />
+                <div className="mx-auto h-1.5 w-[90%] rounded-b-xl bg-ink-950/40 blur-[1px]" />
               </div>
             </div>
           </div>
@@ -242,7 +322,7 @@ export default function HomePage() {
               <Link href={`/order?r=${hero?._id}`} className="btn-clay">
                 <QrCode className="h-4 w-4" /> Open your table menu
               </Link>
-              <Link href="/login" className="btn-white">Sign in for restaurants</Link>
+              <Link href="/login" className="btn-white">Staff & owner login</Link>
             </div>
           </div>
         </div>
@@ -292,5 +372,45 @@ function Testimonial({ name, role, quote }) {
         <div className="ml-auto text-sm font-bold text-gold-600">★★★★★</div>
       </figcaption>
     </figure>
+  );
+}
+
+function OrderRow({ no, table, item, status, tone }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-white px-2 py-1.5 shadow-soft">
+      <span className="font-display text-[10px] font-bold text-ink-950">{no}</span>
+      <span className="rounded bg-ink-900/5 px-1.5 py-0.5 text-[8px] font-medium text-ink-500">{table}</span>
+      <span className="min-w-0 flex-1 truncate text-[9px] font-medium text-ink-700">{item}</span>
+      <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[8px] font-semibold ${tone}`}>{status}</span>
+    </div>
+  );
+}
+
+function MiniQR({ size = 19 }) {
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  const cell = (r, c) => {
+    const inCorner = (x, y) => r >= x && r < x + 7 && c >= y && c < y + 7;
+    const pattern = (x, y) => {
+      const a = r - x;
+      const b = c - y;
+      return a === 0 || a === 6 || b === 0 || b === 6 || (a >= 2 && a <= 4 && b >= 2 && b <= 4);
+    };
+    if (inCorner(0, 0)) return pattern(0, 0);
+    if (inCorner(0, size - 7)) return pattern(0, size - 7);
+    if (inCorner(size - 7, 0)) return pattern(size - 7, 0);
+    return rand() > 0.5;
+  };
+  return (
+    <div className="grid aspect-square w-full" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
+      {Array.from({ length: size * size }).map((_, i) => {
+        const r = Math.floor(i / size);
+        const c = i % size;
+        return <div key={i} className={cell(r, c) ? 'bg-ink-950' : 'bg-transparent'} />;
+      })}
+    </div>
   );
 }

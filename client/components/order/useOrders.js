@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import api, { getStoredTokens } from '@/lib/api';
 import { useToast } from '@/components/Toast';

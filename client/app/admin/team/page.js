@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, ChefHat, UserPlus, X } from 'lucide-react';
+import { ChefHat, UserPlus, X } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import RoleGuard from '@/components/RoleGuard';

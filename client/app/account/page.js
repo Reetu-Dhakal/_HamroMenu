@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Star, Package, Heart, MessageSquare, LogOut, User } from 'lucide-react';
+import { Star, Package, MessageSquare, LogOut, User } from 'lucide-react';
 import api from '@/lib/api';
-import { useAuth, useUser } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import RoleGuard from '@/components/RoleGuard';
 import DashboardShell from '@/components/DashboardShell';
 import { formatCurrency, formatDate, orderStatusMeta, initials } from '@/lib/format';

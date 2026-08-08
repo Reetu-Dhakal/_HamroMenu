@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Menu as MenuIcon, LogOut } from 'lucide-react';
+import { Menu as MenuIcon, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { initials, classNames } from '@/lib/format';
 

@@ -13,7 +13,7 @@ export default function SiteNav({ restaurant, activePage = '' }) {
   const { user } = useAuth();
 
   const links = [
-    { key: 'menu', label: 'Menu', href: restaurant ? `/order?r=${restaurant._id}` : '/menu' },
+    { key: 'menu', label: 'Menu', href: restaurant ? `/order?r=${restaurant._id}` : '/#menu' },
     { key: 'about', label: 'How it works', href: '/#how' },
     { key: 'reviews', label: 'Reviews', href: '/#reviews' },
   ];

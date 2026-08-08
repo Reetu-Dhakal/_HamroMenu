@@ -9,6 +9,7 @@ import {
   clearAuth,
   setAccessToken,
   getStoredTokens,
+  storeAuth,
 } from './api';
 
 const AuthContext = createContext(null);

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { Receipt, Banknote, Printer } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';

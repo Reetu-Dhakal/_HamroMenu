@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useState } from 'react';
 import { X, Minus, Plus, Trash2, Ticket, Sparkles } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';

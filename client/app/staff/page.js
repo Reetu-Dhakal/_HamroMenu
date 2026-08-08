@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
-import { Clock, Check, ChefHat, Bell, Banknote, ArrowRight } from 'lucide-react';
+import { Check, ChefHat, Bell, Banknote, ArrowRight } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import RoleGuard from '@/components/RoleGuard';

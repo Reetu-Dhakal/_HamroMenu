@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Plus, Pencil, Trash2, Upload, X, Leaf, Copy, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, Upload, X, Leaf } from 'lucide-react';
 import api, { uploadImage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import RoleGuard from '@/components/RoleGuard';
@@ -10,7 +10,7 @@ import DashboardShell from '@/components/DashboardShell';
 import { useToast } from '@/components/Toast';
 import { formatCurrency } from '@/lib/format';
 
-const PLACEHOLDER = 'https://images.unsplash.com/photo-1541696432-82c6da8de1bf?w=600&h=400&fit=crop';
+const PLACEHOLDER = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop';
 
 export default function AdminMenuPage() {
   return <RoleGuard roles={['admin']}><MenuManager /></RoleGuard>;

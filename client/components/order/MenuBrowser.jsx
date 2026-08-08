@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { Search, Plus, Minus, ShoppingBag, Leaf, Flame, X, ArrowLeft, SlidersHorizontal } from 'lucide-react';
+import { Search, Plus, Minus, ShoppingBag, Leaf, Flame, X, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
 import { useToast } from '@/components/Toast';
 

@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Save, Upload } from 'lucide-react';
-import api, { uploadImage } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { Save } from 'lucide-react';
+import api from '@/lib/api';
 import RoleGuard from '@/components/RoleGuard';
 import DashboardShell from '@/components/DashboardShell';
 import { useToast } from '@/components/Toast';

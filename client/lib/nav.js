@@ -9,7 +9,7 @@ import {
   QrCode,
   BarChart3,
   Star,
-  User,
+  Receipt,
 } from 'lucide-react';
 
 export function roleNav(role) {

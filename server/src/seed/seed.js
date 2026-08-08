@@ -20,10 +20,10 @@ const img = (id, w = 600, h = 400) =>
   `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&auto=format&q=70`;
 
 const images = {
-  momo: img('1541696432-82c6da8de1bf'),
+  momo: img('1546069901-ba9599a7e63c'),
   chowmein: img('1585032226651-759b368d7246'),
   dalbhat: img('1547592180-85f173990554'),
-  thukpa: img('1542522612833-4d5b9961d29f'),
+  thukpa: img('1504674900247-0877df9cc836'),
   chicken: img('1604503468506-a8da13d82791'),
   paneer: img('1631452180519-c014fe946bc7'),
   burger: img('1568901346375-23c9450c58cd'),
@@ -39,10 +39,10 @@ const images = {
   fish: img('1580476262798-bddd9f4b7369'),
   roll: img('1626700051175-6818013e1d4f'),
   special: img('1540189549336-e6e99c3679fe'),
-  biryani: img('1563379091-9d9a6c4a0a0a'),
+  biryani: img('1565299624946-b28f40a0ae38'),
 };
 
-const dishFallback = 'https://images.unsplash.com/photo-1541696432-82c6da8de1bf?w=600&h=400&fit=crop&auto=format&q=70';
+const dishFallback = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop&auto=format&q=70';
 
 async function hash(pw) {
   const salt = await bcrypt.genSalt(10);

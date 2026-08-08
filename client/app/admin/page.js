@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Wallet, ClipboardList, Users, UtensilsCrossed, TrendingUp, Receipt, Star } from 'lucide-react';
+import { Wallet, ClipboardList, Users, TrendingUp, Receipt, Star } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import RoleGuard from '@/components/RoleGuard';

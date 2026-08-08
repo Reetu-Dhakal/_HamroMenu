@@ -64,7 +64,7 @@ const statusHistoryEntry = new Schema(
 
 const OrderSchema = new Schema(
   {
-    orderNumber: { type: String, required: true, unique: true },
+    orderNumber: { type: String, required: true },
     restaurant: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true },
     table: { type: Schema.Types.ObjectId, ref: 'Table' },
     customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },

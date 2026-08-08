@@ -22,7 +22,7 @@ CartItemSchema.pre('save', function (next) {
 
 const CartSchema = new Schema(
   {
-    customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true, unique: true },
+    customer: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
     restaurant: { type: Schema.Types.ObjectId, ref: 'Restaurant', required: true },
     table: { type: Schema.Types.ObjectId, ref: 'Table' },
     items: { type: [CartItemSchema], default: [] },
