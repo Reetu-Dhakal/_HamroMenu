@@ -58,6 +58,7 @@ class CartService {
       name: item.name,
       unitPrice: Math.round(unitPrice * 100) / 100,
       imageUrl: item.imageUrl,
+      prepTimeMinutes: item.prepTimeMinutes || 0,
       options,
       optionsLabel,
     };

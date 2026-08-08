@@ -10,6 +10,7 @@ const CartItemSchema = new Schema(
     specialInstructions: { type: String, default: '', maxlength: 500 },
     options: { type: Schema.Types.Mixed, default: {} },
     optionsLabel: { type: String, default: '' },
+    prepTimeMinutes: { type: Number, default: 0 },
     lineTotal: { type: Number, default: 0 },
   },
   { _id: true }

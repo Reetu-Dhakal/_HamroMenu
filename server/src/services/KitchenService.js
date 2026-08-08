@@ -10,10 +10,11 @@ class KitchenService {
   async queue(restaurantId) {
     const orders = await Order.find({
       restaurant: restaurantId,
-      status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED, ORDER_STATUS.PREPARING] },
+      status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED, ORDER_STATUS.PREPARING, ORDER_STATUS.READY] },
     })
       .sort({ placedAt: 1, createdAt: 1 })
       .limit(60)
+      .populate('table')
       .select('orderNumber table items status placedAt priority estimatedReadyAt prepTimeTotal');
 
     return orders.map((o) => ({

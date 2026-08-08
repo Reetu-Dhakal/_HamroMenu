@@ -70,6 +70,7 @@ class OrderService {
       await restaurantRepository.updateTable(order.table, { status: 'occupied', currentOrder: order._id });
     }
     await menuService.repo.incrementOrderCounts(orderItems);
+    if (cart.coupon) await menuService.markCouponUsed(cart.coupon);
     await customerService.incrementOrderCount(customerId);
     await cartService.clear(customerId, restaurantId);
 
@@ -110,18 +111,19 @@ class OrderService {
   async changeStatus(orderId, toStatus, actor, note = '') {
     const order = await this.getById(orderId);
 
-    if (toStatus === ORDER_STATUS.SERVED && order.table) {
-      await restaurantRepository.updateTable(order.table, { status: 'free', currentOrder: null });
-    }
-    if (toStatus === ORDER_STATUS.CONFIRMED) order.confirmedBy = actor?._id;
-    if (toStatus === ORDER_STATUS.PREPARING) order.acceptedBy = actor?._id;
-    if (toStatus === ORDER_STATUS.SERVED) order.servedBy = actor?._id;
     if (toStatus === ORDER_STATUS.PREPARING && order.status === ORDER_STATUS.PENDING) {
       order.setStatus(ORDER_STATUS.CONFIRMED, actor?._id, 'Auto-confirmed');
     }
-
     order.setStatus(toStatus, actor?._id, note);
+    if (toStatus === ORDER_STATUS.CONFIRMED) order.confirmedBy = actor?._id;
+    if (toStatus === ORDER_STATUS.PREPARING) order.acceptedBy = actor?._id;
+    if (toStatus === ORDER_STATUS.SERVED) order.servedBy = actor?._id;
+
     await order.save();
+
+    if ([ORDER_STATUS.SERVED, ORDER_STATUS.CANCELLED].includes(toStatus) && order.table) {
+      await restaurantRepository.updateTable(order.table, { status: 'free', currentOrder: null });
+    }
 
     notificationService.emitToRestaurant(order.restaurant, 'order:status', {
       orderId: order._id,
@@ -154,10 +156,12 @@ class OrderService {
   }
 
   async activeOrderForTable(tableId) {
-    return this.repo.findOne({
-      table: tableId,
-      status: { $nin: [ORDER_STATUS.COMPLETED, ORDER_STATUS.CANCELLED] },
-    });
+    return this.repo.model
+      .findOne({
+        table: tableId,
+        status: { $nin: [ORDER_STATUS.COMPLETED, ORDER_STATUS.CANCELLED] },
+      })
+      .sort({ placedAt: -1 });
   }
 
   async cancelOrder(orderId, actor, reason = '') {

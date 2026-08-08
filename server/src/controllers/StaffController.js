@@ -1,6 +1,5 @@
 import staffService from '../services/StaffService.js';
 import orderService from '../services/OrderService.js';
-import kitchenService from '../services/KitchenService.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
@@ -28,8 +27,7 @@ class StaffController {
 
   async sendToKitchen(req, res, next) {
     asyncHandler(async () => {
-      const order = await orderService.confirmOrder(req.params.orderId, req.user);
-      kitchenService.queue;
+      const order = await staffService.sendToKitchen(req.params.orderId, req.user);
       return ApiResponse.send(res, 200, order, 'Sent to kitchen');
     })(req, res, next);
   }

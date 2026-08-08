@@ -29,6 +29,7 @@ class PaymentController {
         transactionId: req.body.transactionId,
         oid: req.body.oid,
         amt: req.body.amt,
+        signature: req.body.signature,
       });
       return ApiResponse.send(res, 200, payment, 'Payment verified');
     })(req, res, next);

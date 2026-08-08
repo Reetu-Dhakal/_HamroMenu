@@ -31,6 +31,8 @@ export const userBaseFields = {
   avatarUrl: { type: String, default: '' },
   avatarPublicId: { type: String, default: '' },
   passwordChangedAt: { type: Date },
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpires: { type: Date, select: false },
   isActive: { type: Boolean, default: true },
   refreshToken: { type: String, select: false },
   createdAt: { type: Date, default: Date.now },

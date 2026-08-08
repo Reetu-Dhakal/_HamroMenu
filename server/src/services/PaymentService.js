@@ -78,17 +78,17 @@ class PaymentService {
     return { payment, paymentData: this.buildPaymentData(payment, order) };
   }
 
-  async verifyEsewa({ paymentId, refId, transactionId, oid, amt }) {
+  async verifyEsewa({ paymentId, refId, transactionId, oid, amt, signature }) {
     const payment = await this.repo.findById(paymentId);
     if (!payment) throw new ApiError(404, 'Payment not found');
 
     if (config.esewa.environment === 'sandbox' && config.esewa.secretKey) {
-      const str = `transaction_code=NA,status=COMPLETE,total_amount=${amt},transaction_uuid=${oid},product_code=${config.esewa.productCode},signed_field_names=transaction_code,status,total_amount,transaction_uuid,product_code,signed_field_names`;
-      const signature = crypto.createHmac('sha256', config.esewa.secretKey).update(str).digest('base64');
-      // In real flow compare signature; sandbox often skipped
-      if (transactionId && signature !== (payment.metadata.signature || '')) {
-        // don't hard fail in dev; rely on refCode presence
-      }
+      const canonical = `total_amount=${amt},transaction_uuid=${oid},product_code=${config.esewa.productCode}`;
+      const expected = crypto.createHmac('sha256', config.esewa.secretKey).update(canonical).digest('base64');
+      const provided = signature || payment.metadata?.signature || '';
+      if (!provided) throw new ApiError(400, 'Missing eSewa signature', null, 'PAYMENT_VERIFICATION_FAILED');
+      if (expected !== provided)
+        throw new ApiError(400, 'eSewa signature mismatch', null, 'PAYMENT_VERIFICATION_FAILED');
     }
 
     payment.method = PAYMENT_METHOD.ESEWA;
@@ -128,7 +128,7 @@ class PaymentService {
       payment.paidAt = new Date();
       payment.verified = true;
       await payment.save();
-      await this.markPaymentPaid(payment.order, PAYMENT_METHOD.KHALTI);
+      await this.markOrderPaid(payment.order, PAYMENT_METHOD.KHALTI);
       return { success: true, data: body, payment };
     }
     return { success: false, data: body, payment };
@@ -168,10 +168,6 @@ class PaymentService {
     await order.save();
     await payment.save();
     return { order, payment };
-  }
-
-  async createPayment(overwrite) {
-    return this.repo.create(overwrite);
   }
 
   async markOrderPaid(orderId, method) {

@@ -120,7 +120,7 @@ class AuthService {
     const hashed = crypto.createHash('sha256').update(resetToken).digest('hex');
     for (const role of Object.values(USER_ROLES)) {
       const M = this.users.modelFor(role);
-      const user = await M.findOne({ resetPasswordToken: hashed });
+      const user = await M.findOne({ resetPasswordToken: hashed }).select('+resetPasswordToken +resetPasswordExpires');
       if (user) {
         if (!user.resetPasswordExpires || user.resetPasswordExpires < Date.now())
           throw new ApiError(400, 'Reset token expired');

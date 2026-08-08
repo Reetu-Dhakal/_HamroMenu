@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import ApiError from '../utils/ApiError.js';
 
 export const ORDER_STATUS = {
   PENDING: 'pending',
@@ -137,9 +138,7 @@ OrderSchema.methods.setStatus = function (status, by = null, note = '') {
   };
   const next = allowed[this.status] || [];
   if (!next.includes(status)) {
-    const error = new Error(`Invalid status transition from ${this.status} to ${status}`);
-    error.code = 'INVALID_STATUS_TRANSITION';
-    throw error;
+    throw new ApiError(400, `Invalid status transition from ${this.status} to ${status}`, null, 'INVALID_STATUS_TRANSITION');
   }
   this.status = status;
   this.statusHistory.push({ status, at: new Date(), by: by || null, note });

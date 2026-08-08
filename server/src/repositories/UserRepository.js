@@ -72,11 +72,11 @@ class UserRepository extends BaseRepository {
   }
 
   async listStaff(restaurantId) {
-    return this.find({ restaurant: restaurantId }, { sort: { createdAt: -1 } });
+    return Staff.find({ restaurant: restaurantId }, { sort: { createdAt: -1 } });
   }
 
   async listKitchen(restaurantId) {
-    return this.find({ role: USER_ROLES.KITCHEN, restaurant: restaurantId }, { sort: { createdAt: -1 } });
+    return KitchenStaff.find({ restaurant: restaurantId }, { sort: { createdAt: -1 } });
   }
 
   getRepo(role) {

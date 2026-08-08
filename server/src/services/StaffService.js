@@ -31,6 +31,30 @@ class StaffService {
     return Order.countDocuments({ restaurant: restaurantId, status: ORDER_STATUS.COMPLETED, completedAt: { $gte: start } });
   }
 
+  async sendToKitchen(orderId, staff) {
+    const order = await Order.findById(orderId);
+    if (!order) throw new ApiError(404, 'Order not found');
+    if (order.status === ORDER_STATUS.PENDING) {
+      order.setStatus(ORDER_STATUS.CONFIRMED, staff?._id, 'Auto-confirmed');
+    }
+    if (order.status === ORDER_STATUS.CONFIRMED) {
+      order.setStatus(ORDER_STATUS.PREPARING, staff?._id, 'Sent to kitchen by staff');
+      order.acceptedBy = staff?._id;
+      await order.save();
+      notificationService.emitToRestaurant(order.restaurant, 'order:status', {
+        orderId: order._id,
+        status: ORDER_STATUS.PREPARING,
+        orderNumber: order.orderNumber,
+      });
+      notificationService.emitToCustomer(order.customer, 'order:status', {
+        orderId: order._id,
+        status: ORDER_STATUS.PREPARING,
+        orderNumber: order.orderNumber,
+      });
+    }
+    return order;
+  }
+
   async serveOrder(orderId, staff) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found');
