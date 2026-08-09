@@ -14,6 +14,13 @@ class PaymentController {
     })(req, res, next);
   }
 
+  async esewaStart(req, res, next) {
+    asyncHandler(async () => {
+      const data = await paymentService.esewaStart({ orderId: req.params.orderId, customerId: req.user._id });
+      return ApiResponse.send(res, 200, data, 'eSewa payment prepared');
+    })(req, res, next);
+  }
+
   async payAfterMeal(req, res, next) {
     asyncHandler(async () => {
       const result = await paymentService.payAfterMeal({ orderId: req.params.orderId, customerId: req.user._id });

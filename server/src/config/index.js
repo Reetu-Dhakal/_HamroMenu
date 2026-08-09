@@ -6,7 +6,7 @@ const config = {
   env: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/hamromenu',
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET || 'hamromenu_access_secret_dev',
     refreshSecret: process.env.JWT_REFRESH_SECRET || 'hamromenu_refresh_secret_dev',

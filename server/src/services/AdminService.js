@@ -4,7 +4,6 @@ import Order, { ORDER_STATUS } from '../models/Order.js';
 import MenuItem from '../models/MenuItem.js';
 import Payment from '../models/Payment.js';
 import Review from '../models/Review.js';
-import Customer from '../models/Customer.js';
 import Coupon from '../models/Coupon.js';
 import mongoose from 'mongoose';
 
@@ -25,7 +24,6 @@ class AdminService {
       activeOrders,
       totalRevenueRes,
       todayRevenueRes,
-      totalCustomers,
       avgRatingRes,
       totalItems,
     ] = await Promise.all([
@@ -43,10 +41,11 @@ class AdminService {
         { $match: { restaurant: rid, placedAt: { $gte: startToday }, status: { $ne: ORDER_STATUS.CANCELLED } } },
         { $group: { _id: null, total: { $sum: '$grandTotal' } } },
       ]),
-      Customer.countDocuments({}),
       Review.aggregate([{ $match: { restaurant: rid } }, { $group: { _id: null, avg: { $avg: '$rating' } } }]),
       MenuItem.countDocuments({ restaurant: rid }),
     ]);
+
+    const totalCustomers = (await Order.distinct('customer', { restaurant: rid })).length;
 
     const totalRevenue = totalRevenueRes[0]?.total || 0;
     const totalOrderCount = totalRevenueRes[0]?.count || 0;

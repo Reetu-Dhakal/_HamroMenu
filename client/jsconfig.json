@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": ["src/*"]
+    },
+    "jsx": "react-jsx",
+    "checkJs": true
   },
-  "exclude": ["node_modules", ".next"]
+  "exclude": ["node_modules", "dist"]
 }

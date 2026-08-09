@@ -19,12 +19,18 @@ class MenuService {
     return restaurant;
   }
 
-  async getMenu(restaurantId, { search = '', includeInactive = false } = {}) {
-    const { items, categories } = await this.repo.listWithCategory(restaurantId, { includeInactive });
+  async getMenu(
+    restaurantId,
+    { search = '', includeInactive = false, vegOnly = false, spice = '', maxPrice = 0, tag = '' } = {}
+  ) {
+    let { items, categories } = await this.repo.listWithCategory(restaurantId, { includeInactive });
     if (search) {
-      const matched = await this.repo.search(restaurantId, search);
-      return { items: matched, categories, restaurantId };
+      items = await this.repo.search(restaurantId, search);
     }
+    if (vegOnly) items = items.filter((it) => it.isVeg);
+    if (spice) items = items.filter((it) => it.spiceLevel === spice);
+    if (Number(maxPrice) > 0) items = items.filter((it) => it.effectivePrice() <= Number(maxPrice));
+    if (tag) items = items.filter((it) => (it.tags || []).some((t) => t.toLowerCase() === tag.toLowerCase()));
     return { items, categories, restaurantId };
   }
 
@@ -41,7 +47,7 @@ class MenuService {
   }
 
   async deleteCategory(id) {
-    await this.repo.updateMany({ category: id }, { $unset: { category: '' } });
+    await this.repo.updateMany({ category: id }, { $unset: { category: '' } }, { runValidators: false });
     return this.repo.categories.findByIdAndDelete(id);
   }
 

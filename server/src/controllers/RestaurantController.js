@@ -28,6 +28,16 @@ class RestaurantController {
     })(req, res, next);
   }
 
+  async tableByNumber(req, res, next) {
+    asyncHandler(async () => {
+      const restaurant = await restaurantRepository.findById(req.params.restaurantId);
+      if (!restaurant) throw new ApiError(404, 'Restaurant not found');
+      const table = await restaurantRepository.tableByNumber(restaurant._id, Number(req.params.number));
+      if (!table || !table.isActive) throw new ApiError(404, 'Table not found', null, 'TABLE_NOT_FOUND');
+      return ApiResponse.send(res, 200, { restaurant, table });
+    })(req, res, next);
+  }
+
   async scanQR(req, res, next) {
     asyncHandler(async () => {
       const result = await qrService.scan(req.body.payload);

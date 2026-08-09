@@ -17,8 +17,8 @@ class QRService {
   }
 
   scanTarget(payload) {
-    const { restaurantId, tableId } = JSON.parse(payload);
-    return `${config.clientUrl}/order?r=${restaurantId}&t=${tableId}`;
+    const { restaurantId, tableNumber } = JSON.parse(payload);
+    return `${config.clientUrl}/menu/table/${tableNumber}?r=${restaurantId}`;
   }
 
   async generateQRCode(restaurant, table, { persist = true } = {}) {

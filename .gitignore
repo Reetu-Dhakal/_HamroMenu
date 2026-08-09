@@ -15,6 +15,8 @@ build/
 # Logs
 *.log
 npm-debug.log*
+hm.err
+hm.out
 
 # OS
 .DS_Store

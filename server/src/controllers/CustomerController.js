@@ -49,6 +49,7 @@ class CustomerController {
         title: req.body.title,
         comment: req.body.comment,
         tags: req.body.tags,
+        images: req.body.images,
       });
       return ApiResponse.send(res, 201, review, 'Review submitted');
     })(req, res, next);

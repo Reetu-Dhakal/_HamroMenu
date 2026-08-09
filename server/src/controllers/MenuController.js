@@ -12,6 +12,10 @@ class MenuController {
       const menu = await menuService.getMenu(restaurantId, {
         search: req.query.search || '',
         includeInactive: req.query.includeInactive === 'true',
+        vegOnly: req.query.veg === 'true',
+        spice: req.query.spice || '',
+        maxPrice: Number(req.query.maxPrice) || 0,
+        tag: req.query.tag || '',
       });
       return ApiResponse.send(res, 200, menu);
     })(req, res, next);

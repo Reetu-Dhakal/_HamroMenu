@@ -104,7 +104,7 @@ class OrderService {
         { 'items.name': { $regex: search, $options: 'i' } },
       ];
     }
-    const data = await this.repo.paginate(filter, { page, limit, sort: { placedAt: -1 } });
+    const data = await this.repo.paginate(filter, { page, limit, sort: { placedAt: -1 }, populate: 'table' });
     return { orders: data.docs, pagination: { page, limit, total: data.total, totalPages: data.totalPages } };
   }
 

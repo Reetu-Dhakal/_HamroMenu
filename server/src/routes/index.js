@@ -11,7 +11,9 @@ import adminController from '../controllers/AdminController.js';
 import customerController from '../controllers/CustomerController.js';
 import staffAdminController from '../controllers/StaffAdminController.js';
 import reviewController from '../controllers/ReviewController.js';
+import recommendationController from '../controllers/RecommendationController.js';
 import { auth, optionalAuth, authorize } from '../middleware/auth.js';
+import { authRateLimiter, orderRateLimiter } from '../middleware/rateLimit.js';
 import { USER_ROLES } from '../models/UserBase.js';
 import multer from 'multer';
 import { body } from 'express-validator';
@@ -26,16 +28,21 @@ router.get('/health', (_req, res) => res.json({ success: true, status: 'ok', ts:
 router.get('/restaurants/by-slug/:slug', restaurantController.getBySlug);
 router.get('/restaurants/:restaurantId', restaurantController.getById);
 router.get('/restaurants/:restaurantId/menu', menuController.getMenu);
+router.get('/restaurants/:restaurantId/tables/number/:number', restaurantController.tableByNumber);
 router.post('/qr/scan', body('payload').isString().notEmpty(), restaurantController.scanQR);
 
+// AI recommendations (public read; personalized when a customer token is present)
+router.get('/restaurants/:restaurantId/recommendations', optionalAuth, recommendationController.personalized);
+router.get('/restaurants/:restaurantId/recommendations/companions', recommendationController.companions);
+
 // Auth routes (validate inline via controller helpers)
-router.post('/auth/register/customer', authController.registerCustomerRules(), authController.registerCustomer);
-router.post('/auth/login', body('email').isEmail(), body('password').notEmpty(), authController.login);
-router.post('/auth/refresh', body('refreshToken').notEmpty(), authController.refresh);
+router.post('/auth/register/customer', authRateLimiter, authController.registerCustomerRules(), authController.registerCustomer);
+router.post('/auth/login', authRateLimiter, body('email').isEmail(), body('password').notEmpty(), authController.login);
+router.post('/auth/refresh', authRateLimiter, body('refreshToken').notEmpty(), authController.refresh);
 router.post('/auth/logout', auth, authController.logout);
 router.get('/auth/me', auth, authController.me);
-router.post('/auth/forgot-password', authController.forgotPassword);
-router.post('/auth/reset-password', authController.resetPassword);
+router.post('/auth/forgot-password', authRateLimiter, authController.forgotPassword);
+router.post('/auth/reset-password', authRateLimiter, authController.resetPassword);
 router.post('/auth/register/staff', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.STAFF), staffAdminController.registerStaff);
 router.post('/auth/register/kitchen', auth, authorize(USER_ROLES.ADMIN), staffAdminController.registerKitchen);
 
@@ -52,7 +59,7 @@ router.delete('/cart/:restaurantId', cartController.clear);
 router.post('/cart/:restaurantId/coupon', cartController.applyCoupon);
 router.delete('/cart/:restaurantId/coupon', cartController.removeCoupon);
 
-router.post('/orders/restaurant/:restaurantId', auth, orderController.placeOrder);
+router.post('/orders/restaurant/:restaurantId', auth, orderRateLimiter, orderController.placeOrder);
 router.get('/orders/my', auth, orderController.myHistory);
 router.get('/orders/:id', auth, orderController.getById);
 router.delete('/orders/:id', auth, orderController.cancel);
@@ -60,6 +67,7 @@ router.get('/orders/table/:tableId/active', auth, orderController.activeOrderFor
 router.patch('/orders/:id/status', auth, authorize(USER_ROLES.STAFF, USER_ROLES.KITCHEN, USER_ROLES.ADMIN), orderController.updateStatus);
 
 router.post('/payments/:orderId/init', auth, paymentController.init);
+router.post('/payments/:orderId/esewa/start', auth, paymentController.esewaStart);
 router.post('/payments/:orderId/pay-after-meal', auth, paymentController.payAfterMeal);
 router.post('/payments/:paymentId/verify/esewa', auth, paymentController.verifyEsewa);
 router.post('/payments/:paymentId/verify/khalti', auth, paymentController.verifyKhalti);
@@ -76,6 +84,15 @@ router.post('/restaurants/:restaurantId/reviews', auth, customerController.addRe
 // Public reviews
 router.get('/reviews/restaurant/:restaurantId', reviewController.forRestaurant);
 router.get('/reviews/menu/:menuItemId', reviewController.forMenuItem);
+
+// Admin: review moderation
+router.get('/admin/:restaurantId/reviews', auth, authorize(USER_ROLES.ADMIN), reviewController.adminList);
+router.patch('/admin/reviews/:id', auth, authorize(USER_ROLES.ADMIN), reviewController.adminSetApproved);
+router.delete('/admin/reviews/:id', auth, authorize(USER_ROLES.ADMIN), reviewController.adminDelete);
+
+// Admin: recommendation engine
+router.post('/admin/:restaurantId/recommendations/rebuild', auth, authorize(USER_ROLES.ADMIN), recommendationController.rebuild);
+router.get('/admin/:restaurantId/recommendations/stats', auth, authorize(USER_ROLES.ADMIN), recommendationController.stats);
 
 // Staff dashboard
 router.get('/staff/:restaurantId/dashboard', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.dashboard);

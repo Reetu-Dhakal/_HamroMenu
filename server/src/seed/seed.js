@@ -184,7 +184,7 @@ async function seed() {
 
   for (const table of tables) {
     const payload = JSON.stringify({ restaurantId: restaurant._id.toString(), tableId: table._id.toString(), tableNumber: table.number, token: `seed-${table.number}` });
-    const target = `${config.clientUrl}/order?r=${restaurant._id}&t=${table._id}`;
+    const target = `${config.clientUrl}/menu/table/${table.number}?r=${restaurant._id}`;
     const dataUrl = await QRCodeLib.toDataURL(target, { width: 256, margin: 1 });
     const qr = await QRCode.create({
       restaurant: restaurant._id,

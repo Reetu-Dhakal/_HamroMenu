@@ -78,6 +78,67 @@ class PaymentService {
     return { payment, paymentData: this.buildPaymentData(payment, order) };
   }
 
+  /**
+   * eSewa v2 browser flow: build the signed form fields the client submits
+   * to the gateway (or a clearly-labelled demo payload when sandbox keys
+   * are not configured).
+   */
+  async esewaStart({ orderId, customerId }) {
+    const order = await Order.findById(orderId);
+    if (!order) throw new ApiError(404, 'Order not found', null, ErrorCodes.NOT_FOUND);
+
+    let payment = await this.repo.findOne({ order: orderId, status: { $in: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.SUCCESS] } });
+    if (!payment) {
+      payment = await this.createPayment({
+        order: orderId,
+        restaurant: order.restaurant,
+        customer: customerId,
+        table: order.table,
+        amount: order.grandTotal,
+        method: PAYMENT_METHOD.ESEWA,
+      });
+    }
+
+    const demoMode = !config.esewa.merchantId || !config.esewa.productCode;
+    const productCode = config.esewa.productCode || 'EPAYTEST';
+    const merchantId = config.esewa.merchantId || 'EPAYTEST';
+    const transaction = crypto.randomBytes(12).toString('hex');
+    const tAmt = Number(payment.amount).toFixed(2);
+    const pid = order.orderNumber;
+    const su = `${config.clientUrl}/checkout?order=${order._id}&status=esewa-success`;
+    const fu = `${config.clientUrl}/checkout?order=${order._id}&status=esewa-failed`;
+
+    let fields = {
+      amt: tAmt,
+      psc: '0',
+      pdc: '0',
+      txAmt: tAmt,
+      tAmt: tAmt,
+      pid,
+      scd: productCode,
+      su,
+      fu,
+      merchantId,
+    };
+
+    if (!demoMode) {
+      const canonical = `total_amount=${tAmt},transaction_uuid=${transaction},product_code=${productCode}`;
+      fields.signature = crypto.createHmac('sha256', config.esewa.secretKey).update(canonical).digest('base64');
+      fields.productCode = productCode;
+    }
+
+    payment.metadata = { ...(payment.metadata || {}), signature: fields.signature || '', transaction_uuid: transaction };
+    await payment.save();
+
+    return {
+      demoMode,
+      gateway: demoMode ? null : 'https://rc-epay.esewa.com.np/api/epay/main/v2/form',
+      fields,
+      paymentId: payment._id,
+      payment,
+    };
+  }
+
   async verifyEsewa({ paymentId, refId, transactionId, oid, amt, signature }) {
     const payment = await this.repo.findById(paymentId);
     if (!payment) throw new ApiError(404, 'Payment not found');
@@ -106,6 +167,18 @@ class PaymentService {
     const payment = await this.repo.findById(paymentId);
     if (!payment) throw new ApiError(404, 'Payment not found');
     const order = await Order.findById(payment.order);
+
+    // Demo mode: no sandbox key configured → accept and mark paid for demos.
+    if (!config.khalti.secretKey) {
+      payment.status = PAYMENT_STATUS.SUCCESS;
+      payment.transactionId = token || 'demo-token';
+      payment.gatewayRef = token || 'demo-token';
+      payment.paidAt = new Date();
+      payment.verified = true;
+      await payment.save();
+      await this.markOrderPaid(payment.order, PAYMENT_METHOD.KHALTI);
+      return { success: true, data: { state: 'Demo' }, payment };
+    }
 
     // Khalti verification endpoint in sandbox
     const res = await fetch('https://khalti.com/api/v2/payment/verify/', {
