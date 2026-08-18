@@ -1,5 +1,7 @@
 import menuRepository from '../repositories/MenuRepository.js';
 import restaurantRepository from '../repositories/RestaurantRepository.js';
+import Subscription from '../models/Subscription.js';
+import FeatureGateService from '../services/FeatureGateService.js';
 import Coupon from '../models/Coupon.js';
 import ApiError, { ErrorCodes } from '../utils/ApiError.js';
 
@@ -17,6 +19,37 @@ class MenuService {
     else restaurant = await this.restaurants.findBySlug(slugOrId);
     if (!restaurant) throw new ApiError(404, 'Restaurant not found', null, ErrorCodes.NOT_FOUND);
     return restaurant;
+  }
+
+  async getMenuPlanAware(
+    restaurantId,
+    { search = '', includeInactive = false, vegOnly = false, spice = '', maxPrice = 0, tag = '' } = {},
+    planName
+  ) {
+    // 1. Check if restaurant can view unlimited items or has limits
+    const subscription = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
+    let limits = { maxMenuItems: -1 }; // unlimited by default
+
+    if (subscription && subscription.plan) {
+      const planDisplayName = subscription.plan.name;
+      limits = SubscriptionPlanFeatures[planDisplayName] || { maxMenuItems: -1 };
+    }
+
+    // 2. Get full menu
+    let { items, categories } = await this.getMenu(restaurantId, {
+      search, includeInactive, vegOnly, spice, maxPrice, tag,
+    });
+
+    // 3. Apply plan limit: hide excess items beyond maxMenuItems
+    if (limits.maxMenuItems !== -1 && limits.maxMenuItems > 0) {
+      const currentCount = items.length;
+      if (currentCount > limits.maxMenuItems) {
+        // Keep only the first maxMenuItems items; rest become inactive/hidden
+        items = items.slice(0, limits.maxMenuItems);
+      }
+    }
+
+    return { items, categories, restaurantId, planLimits: limits };
   }
 
   async getMenu(

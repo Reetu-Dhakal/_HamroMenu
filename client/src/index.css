@@ -37,6 +37,16 @@
     @apply outline-none;
   }
 
+  button, a {
+    @apply outline-none;
+  }
+  button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible,
+  summary:focus-visible, [tabindex]:focus-visible {
+    @apply ring-2 ring-clay-500 ring-offset-2 ring-offset-cream-50;
+    outline: none;
+    border-radius: 12px;
+  }
+
   input[type='number']::-webkit-inner-spin-button,
   input[type='number']::-webkit-outer-spin-button {
     -webkit-appearance: none;
@@ -65,6 +75,10 @@
     min-height: 44px;
   }
   .btn:active { transform: scale(0.97); }
+  .btn:disabled, .btn-primary:disabled, .btn-secondary:disabled, .btn-ghost:disabled, .btn-soft:disabled {
+    @apply cursor-not-allowed opacity-50 shadow-none;
+    transform: none;
+  }
 
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-200 select-none bg-clay-600 text-white shadow-float hover:bg-clay-700 px-6;

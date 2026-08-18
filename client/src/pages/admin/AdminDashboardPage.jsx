@@ -55,6 +55,20 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Load subscription/billing data
+  useEffect(() => {
+    let alive = true;
+    ;(async () => {
+      try {
+        await Promise.all([
+          request(`/api/my/subscription`),
+          request(`/api/my/usage`),
+        ]);
+      } catch (_) { /* ignore */ } finally { if (alive) {} }
+    })();
+    return () => (alive = false);
+  }, [rid]);
+
   if (!ov) {
     return <div className="flex justify-center py-24"><Spinner /></div>;
   }
@@ -80,6 +94,8 @@ export default function AdminDashboardPage() {
         <Kpi icon={UtensilsCrossed} label="Active orders" value={ov.counts.activeOrders} tone="bg-leaf/10 text-leaf" />
         <Kpi icon={Banknote} label="Total revenue" value={nprCompact(ov.revenue.total)} tone="bg-cream-200 text-ink" />
       </div>
+
+      <BillingSection restaurantId={rid} />
 
       <div className="mt-4 grid gap-3 lg:grid-cols-5">
         <section className="card p-5 lg:col-span-3">
@@ -153,23 +169,23 @@ export default function AdminDashboardPage() {
 
         <section className="card flex flex-col p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-display text-[15px] font-bold text-ink">AI recommendations</h2>
+            <h2 className="font-display text-[15px] font-bold text-ink">Recommendation engine</h2>
             <span className="rounded-full bg-leaf/10 px-2.5 py-1 text-[10.5px] font-bold text-leaf">ON</span>
           </div>
           <p className="text-[12.5px] leading-relaxed text-ink-soft">
-            Cosine-similarity engine matching dishes to diners, order co-occurrence boosts, and smart re-ranking per restaurant.
+            Suggests popular and frequently paired dishes for your customers, built from real order and rating history.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-            <Metric label="Items indexed" value={recStats?.itemCount ?? '—'} />
-            <Metric label="Orders learned" value={recStats?.stats?.orders ?? '—'} />
+            <Metric label="Dishes in catalogue" value={recStats?.itemCount ?? '—'} />
+            <Metric label="Orders analysed" value={recStats?.stats?.orders ?? '—'} />
             <Metric label="Diners mapped" value={recStats?.stats?.users ?? '—'} />
-            <Metric label="Reviews woven" value={recStats?.stats?.reviews ?? '—'} />
+            <Metric label="Ratings included" value={recStats?.stats?.reviews ?? '—'} />
           </div>
           <p className="mt-2 text-[10.5px] text-ink-faint">
-            Matrix built {recStats?.computedAt ? new Date(recStats.computedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+            Last updated {recStats?.computedAt ? new Date(recStats.computedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
           </p>
           <button onClick={rebuild} disabled={rebuilding} className="btn-soft mt-4 w-full">
-            {rebuilding ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Rebuild matrix
+            {rebuilding ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Rebuild suggestions
           </button>
         </section>
       </div>
@@ -216,5 +232,80 @@ function Metric({ label, value }) {
       <p className="font-display text-[14px] font-bold text-ink">{value}</p>
       <p className="text-[10px] font-bold uppercase tracking-wide text-ink-faint">{label}</p>
     </div>
+  );
+}
+
+function BillingSection({ restaurantId }) {
+  const { user } = useAuth();
+  const [subscription, setSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    ;(async () => {
+      try {
+        const [subRes, usageRes] = await Promise.all([
+          request(`/api/my/subscription`),
+          request(`/api/my/usage`),
+        ]);
+        if (alive) setSubscription(subRes);
+        // usage data could be stored globally but for now we just show subscription
+        setLoading(false);
+      } catch (e) {
+        setLoading(false);
+      }
+    })();
+    return () => (alive = false);
+  }, [restaurantId]);
+
+  if (loading) return <div className="py-4 text-center text-ink-faint">Loading billing...</div>;
+
+  if (!subscription) return null;
+
+  const planLimits = {
+    'Free / Trial': { maxTables: 5, maxMenuItems: 20, maxStaffAccounts: 1 },
+    Basic: { maxTables: 15, maxMenuItems: 100, maxStaffAccounts: 3 },
+    Pro: { maxTables: -1, maxMenuItems: -1, maxStaffAccounts: -1 },
+    Premium: { maxTables: -1, maxMenuItems: -1, maxStaffAccounts: -1 },
+  };
+
+  const limits = planLimits[subscription.plan.name] || { maxTables: -1, maxMenuItems: -1, maxStaffAccounts: -1 };
+  const tableStatus = limits.maxTables === -1 ? 'Unlimited' : `${subscription.restaurant?.tables?.length || 0} / ${limits.maxTables}`;
+  const itemStatus = limits.maxMenuItems === -1 ? 'Unlimited' : `${subscription.restaurant?.menuItems?.length || 0} / ${limits.maxMenuItems}`;
+  const staffStatus = limits.maxStaffAccounts === -1 ? 'Unlimited' : `${subscription.staff?.length || 0} / ${limits.maxStaffAccounts}`;
+
+  return (
+    <section className="card mt-4 p-5">
+      <h2 className="font-display text-[15px] font-bold text-ink mb-3">Billing & Subscription</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="font-semibold text-ink mb-1">Current Plan</p>
+          <p className="text-[12px] text-ink-faint">{subscription.plan.name}</p>
+          {subscription.status === 'TRIALING' && (
+            <p className="text-[11px] text-clay-600">Trial ends • Will auto-renew unless cancelled</p>
+          )}
+          {subscription.status === 'ACTIVE' && subscription.plan.price > 0 && (
+            <p className="text-[11px] text-clay-600">Billing • {subscription.plan.billingCycle} • ${subscription.plan.price}/mo</p>
+          )}
+        </div>
+        <div>
+          <p className="font-semibold text-ink mb-1">Usage vs Limits</p>
+          <p className="text-[11px] text-ink-faint">{tableStatus}</p>
+          <p className="text-[11px] text-ink-faint">{itemStatus}</p>
+          <p className="text-[11px] text-ink-faint">{staffStatus}</p>
+        </div>
+      </div>
+      {subscription.status !== 'ACTIVE' && (
+        <p className="mt-3 text-[11px] text-clay-600">
+          {subscription.status === 'TRIALING' ? 'Upgrade to continue taking orders after trial' : 'Subscription expired • Renew to resume operations'}
+        </p>
+      )}
+      {subscription.status === 'ACTIVE' && subscription.plan.price > 0 && (
+        <div className="mt-3">
+          <button className="btn-saffron w-full">Upgrade Plan</button>
+          <button className="btn-ghost w-full mt-2">Downgrade Plan</button>
+        </div>
+      )}
+    </section>
   );
 }

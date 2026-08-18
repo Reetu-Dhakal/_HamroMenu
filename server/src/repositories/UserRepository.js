@@ -3,6 +3,7 @@ import BaseRepository from './BaseRepository.js';
 import Customer from '../models/Customer.js';
 import Staff from '../models/Staff.js';
 import KitchenStaff from '../models/KitchenStaff.js';
+import SuperAdmin from '../models/SuperAdmin.js';
 import Admin from '../models/Admin.js';
 import { USER_ROLES } from '../models/UserBase.js';
 import ApiError from '../utils/ApiError.js';
@@ -12,6 +13,7 @@ const MODEL_BY_ROLE = {
   [USER_ROLES.STAFF]: Staff,
   [USER_ROLES.KITCHEN]: KitchenStaff,
   [USER_ROLES.ADMIN]: Admin,
+  [USER_ROLES.SUPER_ADMIN]: SuperAdmin,
 };
 
 class UserRepository extends BaseRepository {

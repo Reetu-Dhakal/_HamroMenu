@@ -3,31 +3,27 @@ import Order, { ORDER_STATUS } from '../models/Order.js';
 import Review from '../models/Review.js';
 import MenuItem from '../models/MenuItem.js';
 import RecommendationCache from '../models/RecommendationCache.js';
+import { apriori } from '../services/AssociationRuleService.js';
 
 /**
- * RecommendationService — item-based collaborative filtering.
+ * RecommendationService — enhanced with user-based KNN + item-based collaborative filtering.
  * -------------------------------------------------------------
- * Pure vanilla JavaScript, no external ML services, so it is easy to
- * explain, demo and tweak.
- *
- * 1. A user-item interaction matrix is derived from the live data:
- *      - every non-cancelled order contributes (quantity x recency decay)
- *      - every rating contributes (rating - 3) x recency decay
- *    Recent behaviour is weighted more heavily (14-day half life).
- * 2. Item-to-item cosine similarity is computed over the customer
- *    dimensions of that matrix and cached in RecommendationCache.
- * 3. Co-occurrence ("frequently ordered together") is derived by counting
- *    how often pairs of dishes appear in the same order.
+ * 1. Item-based collaborative filtering with cosine similarity (existing).
+ * 2. User-based KNN: find similar customers using cosine similarity on preference vectors.
+ * 3. Co-occurrence ("frequently ordered together") via Apriori-like counting.
  * 4. Surfaces:
- *      - "Recommended for you"   personalized for a logged-in customer,
- *                                cold-start falls back to bestsellers.
- *      - "Frequently ordered with your cart" -> co-occurrence.
+ *      - "Recommended for you"   personalized (KNN) or bestsellers fallback.
+ *      - "Frequently ordered with"  co-occurrence from order history.
  */
 
-const SIMILARITY_TOP_K = 15; // neighbours kept per item
+/** ———————————————————————————————— Constants */
+
+const SIMILARITY_TOP_K = 15; // neighbours kept per item / user
 const CO_OCCUR_TOP_K = 10;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour between automatic rebuilds
 const RECENCY_HALF_LIFE_DAYS = 14;
+
+/** ———————————————————————————————— Helpers */
 
 function recencyWeight(date) {
   const days = (Date.now() - new Date(date).getTime()) / 86400000;
@@ -52,6 +48,26 @@ function asObjectId(id) {
   return typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id;
 }
 
+/** ———————————————————————————————— User-Item Matrix */
+
+function buildUserItemMatrix(orders) {
+  /** Returns { userId: { itemId: weight } } */
+  const userItems = {};
+
+  for (const order of orders) {
+    const w = recencyWeight(order.placedAt);
+    for (const it of order.items || []) {
+      const itemId = it.menuItem.toString();
+      const uId = order.customer.toString();
+      userItems[uId] = userItems[uId] || {};
+      userItems[uId][itemId] = (userItems[uId][itemId] || 0) + (it.quantity || 1) * w;
+    }
+  }
+  return userItems;
+}
+
+/** ———————————————————————————————— Class */
+
 class RecommendationService {
   constructor() {
     this.model = RecommendationCache;
@@ -72,66 +88,121 @@ class RecommendationService {
     return { orders, reviews };
   }
 
-  /**
-   * Build the user-item interaction matrix.
-   * Returns { itemVectors, userVectors, stats }
-   *   itemVectors: itemId -> { userId: weight }
-   *   userVectors: userId -> { itemId: weight }
-   * A "you" pseudo-user replaces the real customer when personalized.
-   */
+  /** Build the user-item interaction matrix for a restaurant. */
   async buildMatrix(restaurantId, customerId = null) {
-    const { orders, reviews } = await this.fetchInteractions(restaurantId, customerId);
-    const itemVectors = {};
-    const userVectors = {};
-
-    const add = (itemId, userId, weight) => {
-      if (!itemId || !userId) return;
-      itemId = itemId.toString();
-      itemVectors[itemId] = itemVectors[itemId] || {};
-      itemVectors[itemId][userId] = (itemVectors[itemId][userId] || 0) + weight;
-      userVectors[userId] = userVectors[userId] || {};
-      userVectors[userId][itemId] = (userVectors[userId][itemId] || 0) + weight;
-    };
-
-    for (const order of orders) {
-      const w = recencyWeight(order.placedAt);
-      for (const it of order.items || []) {
-        add(it.menuItem, customerId ? 'you' : order.customer, (it.quantity || 1) * w);
-      }
-    }
-    for (const review of reviews) {
-      add(review.menuItem, customerId ? 'you' : review.customer, (review.rating - 3) * recencyWeight(review.createdAt));
-    }
-
-    return {
-      itemVectors,
-      userVectors,
-      stats: { users: Object.keys(userVectors).length, orders: orders.length, reviews: reviews.length },
-    };
+    const { orders } = await this.fetchInteractions(restaurantId, customerId);
+    return buildUserItemMatrix(orders);
   }
 
-  /** Compute item-to-item cosine similarity, top-K neighbours each. */
-  computeSimilarity(itemVectors) {
-    const ids = Object.keys(itemVectors);
+  /** Compute user-user cosine similarity matrix. */
+  computeUserSimilarity(userVectors) {
+    const userIds = Object.keys(userVectors);
     const scores = {};
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const sim = cosine(itemVectors[ids[i]], itemVectors[ids[j]]);
-        if (sim <= 0.01) continue;
-        scores[ids[i]] = scores[ids[i]] || [];
-        scores[ids[j]] = scores[ids[j]] || [];
-        scores[ids[i]].push({ id: ids[j], score: sim });
-        scores[ids[j]].push({ id: ids[i], score: sim });
+
+    for (let i = 0; i < userIds.length; i++) {
+      for (let j = i + 1; j < userIds.length; j++) {
+        const idA = userIds[i];
+        const idB = userIds[j];
+        const vecA = userVectors[idA] || {};
+        const vecB = userVectors[idB] || {};
+        const sim = cosine(vecA, vecB);
+        if (sim > 0) {
+          scores[`${idA}::${idB}`] = sim;
+          scores[`${idB}::${idA}`] = sim;
+        }
       }
-    }
-    for (const id of ids) {
-      (scores[id] || []).sort((a, b) => b.score - a.score);
-      scores[id] = (scores[id] || []).slice(0, SIMILARITY_TOP_K);
     }
     return scores;
   }
 
-  /** Pairwise order co-occurrence, recency-weighted counts. */
+  /** Find K nearest neighbours for a user. */
+  async knnNeighbours(restaurantId, customerId, k = SIMILARITY_TOP_K) {
+    const { userVectors } = await this.buildMatrix(restaurantId, customerId);
+    const targetVector = userVectors[customerId] || {};
+
+    // Compute similarity between target and all other users
+    const allOrders = await Order.find({ restaurant: restaurantId, status: { $nin: [ORDER_STATUS.CANCELLED] } })
+      .select('customer items placedAt')
+      .lean();
+
+    const otherUserVectors = {};
+    for (const order of allOrders) {
+      const uId = order.customer.toString();
+      if (uId === customerId) continue;
+      otherUserVectors[uId] = otherUserVectors[uId] || {};
+      for (const it of order.items || []) {
+        otherUserVectors[uId][it.menuItem.toString()] =
+          (otherUserVectors[uId][it.menuItem.toString()] || 0) + (it.quantity || 1);
+      }
+    }
+
+    const otherUserScores = {};
+    for (const uId of Object.keys(otherUserVectors)) {
+      otherUserScores[uId] = cosine(targetVector, otherUserVectors[uId]);
+    }
+
+    // Sort by similarity desc, take top k
+    const ranked = Object.entries(otherUserScores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, k)
+      .map(([uId, sim]) => ({ userId: uId, similarity: sim }));
+
+    return ranked;
+  }
+
+  /** Get recommendations using KNN (user-based). */
+  async recommendedByKNN(restaurantId, customerId, { limit = 8 } = {}) {
+    const neighbours = await this.knnNeighbours(restaurantId, customerId, limit);
+
+    if (!neighbours.length) {
+      return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
+    }
+
+    // Collect preferences from neighbours, excluding already-ordered items
+    const { orders } = await this.fetchInteractions(restaurantId, customerId);
+    const orderedItemIds = new Set();
+    for (const order of orders) {
+      for (const it of order.items || []) {
+        orderedItemIds.add(it.menuItem.toString());
+      }
+    }
+
+    // Aggregate scores from neighbours
+    const candidateScores = {};
+
+    for (const { userId, similarity } of neighbours) {
+      const { orders: neighbourOrders } = await this.fetchInteractions(restaurantId, userId);
+      for (const order of neighbourOrders) {
+        for (const it of order.items || []) {
+          const itemId = it.menuItem.toString();
+          if (orderedItemIds.has(itemId)) continue;
+          candidateScores[itemId] = (candidateScores[itemId] || 0) + similarity * (it.quantity || 1);
+        }
+      }
+    }
+
+    if (Object.keys(candidateScores).length === 0) {
+      return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
+    }
+
+    const ranked = Object.entries(candidateScores)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id]) => id);
+
+    const items = await MenuItem.find({
+      restaurant: restaurantId,
+      _id: { $in: ranked },
+      isAvailable: true,
+    }).lean();
+
+    const order = new Map(ranked.map((id, i) => [id, i]));
+    const sorted = items.sort((a, b) => (order.get(a._id.toString()) ?? 99) - (order.get(b._id.toString()) ?? 99));
+
+    return { type: 'personalized', items: sorted, basedOn: neighbours.length };
+  }
+
+  /** "Frequently ordered together" — recency-weighted co-occurrence. */
   computeCoOccurrence(orders) {
     const counts = {};
     for (const order of orders) {
@@ -161,20 +232,74 @@ class RecommendationService {
   /** Recompute and store the whole cache for one restaurant. */
   async rebuild(restaurantId) {
     const rid = asObjectId(restaurantId);
-    const { itemVectors, stats } = await this.buildMatrix(rid);
-    const orders = await Order.find({ restaurant: rid, status: { $nin: [ORDER_STATUS.CANCELLED] } })
-      .select('items placedAt')
-      .lean();
+    const { orders } = await this.fetchInteractions(rid);
+
+    // 1. User-user similarity for KNN
+    const userVectors = await this.buildMatrix(rid);
+    const userSimilarity = this.computeUserSimilarity(userVectors);
+
+    // 2. Apriori association rules for "Frequently Ordered Together"
+    const { rules: aprioriRules, itemsets } = apriori(orders, 0.02, 0.3, 1.0);
+
+    // 3. Item-item similarity for "Recommended for you" (item-based CF)
+    const itemVectors = {};
+    for (const order of orders) {
+      const w = recencyWeight(order.placedAt);
+      for (const it of order.items || []) {
+        const itemId = it.menuItem.toString();
+        itemVectors[itemId] = itemVectors[itemId] || {};
+        itemVectors[itemId][order.customer.toString()] = (itemVectors[itemId][order.customer.toString()] || 0) + w;
+      }
+    }
+    const similarity = this.computeItemSimilarity(itemVectors);
+
+    // 4. Flatten Apriori rules into coOccurrence for API access
+    const coOccurrence = {};
+    for (const rule of aprioriRules.slice(0, CO_OCCUR_TOP_K)) {
+      const key = rule.antecedent.replace(/ /g, '') + '→' + rule.consequent.replace(/ /g, '');
+      coOccurrence[key] = {
+        antecedent: rule.antecedent,
+        consequent: rule.consequent,
+        support: rule.support,
+        confidence: rule.confidence,
+        lift: rule.lift,
+      };
+    }
 
     let doc = await this.model.findOne({ restaurant: rid });
     if (!doc) doc = new this.model({ restaurant: rid });
-    doc.similarity = this.computeSimilarity(itemVectors);
-    doc.coOccurrence = this.computeCoOccurrence(orders);
+    doc.similarity = similarity;
+    doc.userSimilarity = userSimilarity;
+    doc.coOccurrence = coOccurrence;
+    doc.aprioriRules = aprioriRules; // full rules for admin view
     doc.itemCount = Object.keys(itemVectors).length;
+    const { stats } = await this.buildMatrix(rid);
     doc.stats = stats;
     doc.computedAt = new Date();
     await doc.save();
     return doc;
+  }
+
+  /** Compute item-item cosine similarity (existing functionality). */
+  computeItemSimilarity(itemVectors) {
+    const ids = Object.keys(itemVectors);
+    const scores = {};
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const sim = cosine(itemVectors[ids[i]], itemVectors[ids[j]]);
+        if (sim > 0.01) {
+          scores[ids[i]] = scores[ids[i]] || [];
+          scores[ids[j]] = scores[ids[j]] || [];
+          scores[ids[i]].push({ id: ids[j], score: sim });
+          scores[ids[j]].push({ id: ids[i], score: sim });
+        }
+      }
+    }
+    for (const id of ids) {
+      (scores[id] || []).sort((a, b) => b.score - a.score);
+      scores[id] = (scores[id] || []).slice(0, SIMILARITY_TOP_K);
+    }
+    return scores;
   }
 
   /** Fresh cache — rebuild when missing or older than one hour. */
@@ -194,7 +319,7 @@ class RecommendationService {
 
   /**
    * "Recommended for you".
-   * Logged-in customer with history -> personalized cosine scoring;
+   * Logged-in customer with history -> personalized KNN cosine scoring;
    * otherwise (guest / new customer / not enough signal) -> bestsellers.
    */
   async recommendedFor(restaurantId, customerId = null, { limit = 8 } = {}) {
@@ -202,17 +327,29 @@ class RecommendationService {
       return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
     }
     const [{ userVectors }, cache] = await Promise.all([this.buildMatrix(restaurantId, customerId), this.cacheFor(restaurantId)]);
-    const userVector = userVectors['you'] || {};
+    const userVector = userVectors[customerId] || {};
+
+    // If user has no order history, fallback to bestsellers
     const known = Object.keys(userVector).filter((k) => (userVector[k] || 0) > 0);
     if (!known.length) {
       return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
     }
 
+    // Try KNN first
+    const knnResult = await this.recommendedByKNN(restaurantId, customerId, limit);
+
+    // If KNN produced results, use them; otherwise fall back to item-based similarity
+    if (knnResult.type === 'personalized' && knnResult.items.length > 0) {
+      return knnResult;
+    }
+
+    // Fallback: item-based collaborative filtering
+    const knownIds = known.map((k) => k.toString ? k.toString() : String(k));
     const scores = {};
-    for (const itemId of known) {
+    for (const itemId of knownIds) {
       const weight = userVector[itemId] || 0;
       for (const neighbour of cache.similarity[itemId] || []) {
-        if (known.includes(neighbour.id)) continue;
+        if (knownIds.includes(neighbour.id)) continue;
         scores[neighbour.id] = (scores[neighbour.id] || 0) + neighbour.score * weight;
       }
     }

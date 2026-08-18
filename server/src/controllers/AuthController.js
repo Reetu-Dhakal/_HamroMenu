@@ -15,6 +15,31 @@ class AuthController {
     ];
   }
 
+  registerRestaurantOwnerRules() {
+    return [
+      body('name').isString().trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
+      body('email').isEmail().withMessage('A valid email is required'),
+      body('phone').optional().isString(),
+      body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+      body('restaurant').optional().isString(),
+      validate,
+    ];
+  }
+
+  async registerRestaurantOwner(req, res, next) {
+    asyncHandler(async () => {
+      const payload = await authService.registerRestaurantOwner(req.body);
+      return ApiResponse.send(res, 201, payload, 'Restaurant owner account created');
+    })(req, res, next);
+  }
+
+  async registerSuperAdmin(req, res, next) {
+    asyncHandler(async () => {
+      const payload = await authService.registerSuperAdmin(req.body);
+      return ApiResponse.send(res, 201, payload, 'Super admin account created');
+    })(req, res, next);
+  }
+
   async registerCustomer(req, res, next) {
     asyncHandler(async () => {
       const payload = await authService.registerCustomer(req.body);

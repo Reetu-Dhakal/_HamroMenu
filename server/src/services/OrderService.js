@@ -5,6 +5,7 @@ import menuService from './MenuService.js';
 import restaurantRepository from '../repositories/RestaurantRepository.js';
 import customerService from './CustomerService.js';
 import notificationService from './NotificationService.js';
+import FeatureGateService from './FeatureGateService.js';
 import ApiError, { ErrorCodes } from '../utils/ApiError.js';
 import mongoose from 'mongoose';
 
@@ -19,6 +20,28 @@ class OrderService {
   }
 
   async placeOrder(customerId, { restaurantId, tableId, notes, customerNote, specialRequests, paymentMethod = 'pay_after_meal', source = 'qr' } = {}) {
+    // 1. Check plan limits before allowing order
+    const canOrder = await FeatureGateService.canAddMenuItem(restaurantId);
+    if (!canOrder) {
+      const sub = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
+      const planName = sub?.plan?.name || 'unknown';
+      throw new ApiError(403, `Cannot place order - maximum menu items reached on ${planName} plan. Upgrade your plan.`);
+    }
+
+    // 2. Check subscription status - restrict orders on EXPIRED/PAST_DUE subscriptions
+    const subscription = await Subscription.findOne({ restaurant: restaurantId });
+    if (subscription) {
+      if (subscription.status === 'EXPIRED') {
+        throw new ApiError(403, 'Subscription has expired. Please renew your subscription to continue taking orders.');
+      }
+      if (subscription.status === 'PAST_DUE') {
+        throw new ApiError(403, 'Subscription is past due. Please update payment to continue taking orders.');
+      }
+      if (subscription.status === 'TRIALING') {
+        // Trial restaurants can take orders, but will be restricted after trial ends
+      }
+    }
+
     const cart = await cartService.getCart(customerId, restaurantId);
     if (cart.isEmpty()) throw new ApiError(400, 'Cart is empty', null, ErrorCodes.CART_EMPTY);
     const restaurant = await restaurantRepository.findById(restaurantId);

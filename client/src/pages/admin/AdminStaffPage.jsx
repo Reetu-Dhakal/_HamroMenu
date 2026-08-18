@@ -40,7 +40,7 @@ export default function AdminStaffPage() {
       if (kind === 'staff') {
         await request('/api/auth/register/staff', {
           method: 'POST',
-          body: { ...form, restaurant: rid },
+          body: { name: form.name, email: form.email, phone: form.phone, password: form.password, restaurant: rid, staffRole: form.staffRole },
         });
         toast.success(`Invited ${form.name} as ${form.staffRole}`);
       } else {

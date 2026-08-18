@@ -39,6 +39,42 @@ const RestaurantSchema = new Schema(
     isOpen: { type: Boolean, default: true },
     operatingHours: { type: [OperatingHoursSchema], default: [] },
     isActive: { type: Boolean, default: true },
+    owner: { type: Schema.Types.ObjectId, ref: 'Admin' },
+    verificationStatus: {
+      type: String,
+      enum: ['PENDING', 'VERIFIED', 'REJECTED', 'MANUAL_REVIEW'],
+      default: 'PENDING',
+    },
+    restaurantStatus: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED', 'ACTIVE', 'SUSPENDED'],
+      default: 'PENDING',
+    },
+    businessRegistrationNumber: { type: String, trim: true, sparse: true, unique: true },
+    panNumber: { type: String, trim: true, sparse: true },
+    documents: [
+      {
+        type: { type: String, enum: ['license', 'pan', 'owner_id', 'other'], required: true },
+        url: { type: String, required: true },
+        publicId: { type: String },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+    verificationChecks: {
+      requiredInfo: { type: Boolean, default: false },
+      validEmail: { type: Boolean, default: false },
+      validPhone: { type: Boolean, default: false },
+      registrationNumber: { type: Boolean, default: false },
+      noDuplicateReg: { type: Boolean, default: false },
+      noDuplicateRestaurant: { type: Boolean, default: false },
+      documentsUploaded: { type: Boolean, default: false },
+      infoConsistency: { type: Boolean, default: false },
+    },
+    verificationNote: { type: String, default: '' },
+    verifiedAt: { type: Date },
+    approvedAt: { type: Date },
+    rejectedAt: { type: Date },
+    suspendedAt: { type: Date },
   },
   { timestamps: true }
 );
@@ -49,5 +85,9 @@ RestaurantSchema.pre('save', function (next) {
   }
   next();
 });
+
+RestaurantSchema.index({ owner: 1 });
+RestaurantSchema.index({ verificationStatus: 1, restaurantStatus: 1 });
+RestaurantSchema.index({ 'address.city': 1, name: 1 });
 
 export default model('Restaurant', RestaurantSchema);

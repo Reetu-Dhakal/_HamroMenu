@@ -1,55 +1,34 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Banknote, Wallet, Zap, ChefHat, Loader2, ShieldCheck, ShoppingBag, WalletCards,
+  ArrowLeft, Banknote, Wallet, ChefHat, Loader2, ShieldCheck, ShoppingBag, WalletCards,
 } from 'lucide-react';
 import { request } from '../../lib/apiClient';
 import { useCart } from '../../context/CartContext';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { useSocket } from '../../context/SocketContext';
 import { npr } from '../../lib/format';
 import { SmartImage, Sheet, EmptyState } from '../../components/ui';
-
-const PAY_METHODS = [
-  {
-    id: 'pay_after_meal',
-    label: 'Pay after your meal',
-    sub: 'Settle at the counter with cash, card or POS',
-    icon: Banknote,
-  },
-  {
-    id: 'esewa',
-    label: 'eSewa',
-    sub: 'Pay instantly with your eSewa wallet',
-    icon: Wallet,
-  },
-  {
-    id: 'khalti',
-    label: 'Khalti',
-    sub: 'Khalti wallet, banks & cards',
-    icon: WalletCards,
-  },
-];
 
 export default function CheckoutPage() {
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { user } = useAuth();
   const toast = useToast();
-  const { socket } = useSocket();
-  const { session, items, subtotal, discountTotal, tax, serviceCharge, grandTotal, itemCount, clear, busy } = useCart();
+  const { session, items, subtotal, discountTotal, tax, serviceCharge, grandTotal, clear } = useCart();
 
   const [method, setMethod] = useState('pay_after_meal');
   const [notes, setNotes] = useState('');
   const [placing, setPlacing] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [pendingDemo, setPendingDemo] = useState(null);
+  const [payments, setPayments] = useState(null);
 
   const orderId = params.get('order');
   const status = params.get('status');
+
+  useEffect(() => {
+    request('/api/payments/availability')
+      .then(setPayments)
+      .catch(() => setPayments({ esewa: { enabled: false }, khalti: { enabled: false } }));
+  }, []);
 
   useEffect(() => {
     if (orderId && status === 'esewa-success') {
@@ -57,6 +36,35 @@ export default function CheckoutPage() {
       setParams({}, { replace: true });
     }
   }, [orderId, status, setParams, toast]);
+
+  const walletOn = (id) => id === 'esewa' ? payments?.esewa?.enabled === true : payments?.khalti?.enabled === true;
+
+  let payMethods = [
+    {
+      id: 'pay_after_meal',
+      label: 'Pay after your meal',
+      sub: 'Settle at the counter with cash, card or POS',
+      icon: Banknote,
+    },
+    {
+      id: 'esewa',
+      label: 'eSewa',
+      sub: walletOn('esewa')
+        ? `Pay instantly with eSewa (${payments?.esewa?.environment === 'production' ? 'live' : 'sandbox'})`
+        : 'Not enabled by this restaurant yet · pay at the counter',
+      icon: Wallet,
+      enabled: walletOn('esewa'),
+    },
+    {
+      id: 'khalti',
+      label: 'Khalti',
+      sub: walletOn('khalti')
+        ? 'Khalti wallet, banks & cards'
+        : 'Not enabled by this restaurant yet · pay at the counter',
+      icon: WalletCards,
+      enabled: walletOn('khalti'),
+    },
+  ];
 
   const canPlace = items?.length > 0 && !placing;
 
@@ -75,6 +83,11 @@ export default function CheckoutPage() {
     return order;
   }
 
+  function fallbackToCounter(order, walletName) {
+    toast.info(`${walletName} isn't configured for this restaurant — you can pay at the counter after your meal.`);
+    nav(`/order/${order._id}/track`);
+  }
+
   async function handlePlace() {
     setPlacing(true);
     try {
@@ -88,8 +101,7 @@ export default function CheckoutPage() {
         const order = await submitOrder();
         const data = await request(`/api/payments/${order._id}/esewa/start`, { method: 'POST', body: {} });
         if (data.demoMode) {
-          setPendingDemo({ type: 'esewa', paymentId: data.paymentId, orderId: order._id });
-          setDemoOpen(true);
+          fallbackToCounter(order, 'eSewa');
         } else {
           postEsewaForm(data.fields);
         }
@@ -101,8 +113,7 @@ export default function CheckoutPage() {
         const data = await request(`/api/payments/${order._id}/init`, { method: 'POST', body: { method: 'khalti' } });
         const paymentId = data.payment?._id;
         if (!window.KhaltiCheckout) {
-          setPendingDemo({ type: 'khalti', paymentId, orderId: order._id });
-          setDemoOpen(true);
+          fallbackToCounter(order, 'Khalti');
         } else {
           openKhaltiWidget(data.payment, order);
         }
@@ -153,26 +164,6 @@ export default function CheckoutPage() {
       },
     });
     checkout.show();
-  }
-
-  async function completeDemo() {
-    const d = pendingDemo;
-    setDemoOpen(false);
-    setPlacing(false);
-    try {
-      if (d.type === 'esewa') {
-        await request(`/api/payments/${d.paymentId}/verify/esewa`, {
-          method: 'POST',
-          body: { refId: 'demo', transactionId: 'demo', oid: '1', amt: String(grandTotal), signature: 'demo' },
-        });
-      } else {
-        await request(`/api/payments/${d.paymentId}/verify/khalti`, { method: 'POST', body: { token: 'demo-token' } });
-      }
-      toast.success('Payment received — order confirmed');
-      nav(`/order/${d.orderId}/track`);
-    } catch (e) {
-      toast.error(e.message);
-    }
   }
 
   if (!session || !items?.length) {
@@ -231,13 +222,16 @@ export default function CheckoutPage() {
         <section className="card p-5">
           <h2 className="mb-3 font-display text-[15px] font-bold text-ink">How would you like to pay?</h2>
           <div className="space-y-2.5">
-            {PAY_METHODS.map((m) => {
+            {payMethods.map((m) => {
               const active = method === m.id;
+              const disabled = m.enabled === false;
               return (
                 <button
                   key={m.id}
-                  onClick={() => setMethod(m.id)}
-                  className={`flex w-full items-center gap-3.5 rounded-2xl border-2 px-4 py-3.5 text-left transition-all ${active ? 'border-clay-600 bg-clay-50' : 'border-cream-200 bg-white hover:border-clay-300'}`}
+                  onClick={() => !disabled && setMethod(m.id)}
+                  disabled={disabled}
+                  aria-disabled={disabled}
+                  className={`flex w-full items-center gap-3.5 rounded-2xl border-2 px-4 py-3.5 text-left transition-all ${active ? 'border-clay-600 bg-clay-50' : 'border-cream-200 bg-white hover:border-clay-300'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-clay-600 text-white' : 'bg-cream-100 text-ink-soft'}`}>
                     <m.icon size={18} />
@@ -246,13 +240,22 @@ export default function CheckoutPage() {
                     <span className="block text-[14px] font-bold text-ink">{m.label}</span>
                     <span className="block text-[12px] text-ink-faint">{m.sub}</span>
                   </span>
-                  <span className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${active ? 'border-clay-600' : 'border-cream-300'}`}>
-                    {active && <span className="h-2.5 w-2.5 rounded-full bg-clay-600" />}
-                  </span>
+                  {!disabled && (
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${active ? 'border-clay-600' : 'border-cream-300'}`}>
+                      {active && <span className="h-2.5 w-2.5 rounded-full bg-clay-600" />}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          {payMethods.filter((m) => m.enabled === false).length > 0 && (
+            <p className="mt-3 flex items-start gap-2 rounded-xl bg-cream-100 px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-soft">
+              <ChefHat size={14} className="mt-0.5 shrink-0 text-ink-faint" />
+              Online wallets appear once this restaurant enables them — until then, settle at the counter after your meal.
+            </p>
+          )}
 
           <div className="mt-4">
             <label className="field-label">Notes for the kitchen (optional)</label>
@@ -280,26 +283,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
-
-      {demoOpen && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-ink/50 p-5 backdrop-blur-sm">
-          <motion.div initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm rounded-3xl bg-paper p-6 text-center shadow-sheet">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-clay-50 text-clay-600">
-              <ChefHat size={26} />
-            </div>
-            <h3 className="font-display text-lg font-bold text-ink">Sandbox payment mode</h3>
-            <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-soft">
-              {pendingDemo?.type === 'esewa'
-                ? 'No eSewa sandbox credentials are configured, so this demo completes the eSewa flow instantly. Real merchants sign the gateway form and return here.'
-                : 'No Khalti credentials are configured. This demo completes the wallet flow instantly.'}
-            </p>
-            <div className="mt-5 flex gap-2.5">
-              <button onClick={() => { setDemoOpen(false); setPlacing(false); }} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={completeDemo} className="btn-primary flex-1">Complete demo payment</button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

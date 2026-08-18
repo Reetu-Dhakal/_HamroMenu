@@ -1,5 +1,8 @@
 import crypto from 'crypto';
 import userRepository from '../repositories/UserRepository.js';
+import Subscription from '../models/Subscription.js';
+import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import Invoice from '../models/Invoice.js';
 import { generateTokenPair, signAccessToken, verifyAccessToken, verifyRefreshToken } from '../utils/jwt.js';
 import ApiError, { ErrorCodes } from '../utils/ApiError.js';
 import { USER_ROLES } from '../models/UserBase.js';
@@ -7,6 +10,7 @@ import { USER_ROLES } from '../models/UserBase.js';
 class AuthService {
   constructor() {
     this.users = userRepository;
+    this.models = { Subscription, SubscriptionPlan, Invoice };
   }
 
   async registerCustomer({ name, email, phone, password }) {
@@ -50,6 +54,55 @@ class AuthService {
     const exists = await this.users.findByEmail(email);
     if (exists) throw new ApiError(409, 'This email is already registered', null, ErrorCodes.CONFLICT);
     const user = await this.users.createByRole(USER_ROLES.ADMIN, { name, email, password });
+    return this.buildAuthPayload(user);
+  }
+
+  async registerRestaurantOwner({ name, email, phone, password, restaurant }) {
+    const exists = await this.users.findByEmail(email);
+    if (exists) throw new ApiError(409, 'This email is already registered', null, ErrorCodes.CONFLICT);
+
+    // 1. Create user as ADMIN role with restaurant association
+    const user = await this.users.createByRole(USER_ROLES.ADMIN, {
+      name,
+      email,
+      phone,
+      password,
+      restaurant,
+    });
+
+    // 2. Create Free/Trial subscription for the restaurant
+    const freePlan = await this.models.SubscriptionPlan.findOne({ name: 'Free / Trial' });
+    if (!freePlan) throw new Error('Free/Trial plan not found - cannot create subscription');
+
+    const subscription = new this.models.Subscription({
+      restaurant: restaurant,
+      plan: freePlan._id,
+      status: 'TRIALING',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+      autoRenew: true,
+    });
+    await subscription.save();
+
+    // 3. Create initial PENDING invoice for the trial
+    const invoice = new this.models.Invoice({
+      restaurant,
+      subscription: subscription._id,
+      amount: 0,
+      billingPeriodStart: new Date(),
+      billingPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      status: 'PENDING',
+      paymentMethod: 'pay_after_meal',
+    });
+    await invoice.save();
+
+    return this.buildAuthPayload(user);
+  }
+
+  async registerSuperAdmin({ name, email, password }) {
+    const exists = await this.users.findByEmail(email);
+    if (exists) throw new ApiError(409, 'This email is already registered', null, ErrorCodes.CONFLICT);
+    const user = await this.users.createByRole(USER_ROLES.SUPER_ADMIN, { name, email, password });
     return this.buildAuthPayload(user);
   }
 

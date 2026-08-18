@@ -274,6 +274,16 @@ class PaymentService {
   async listForRestaurant(restaurantId, { page = 1, limit = 20 } = {}) {
     return this.repo.paginate({ restaurant: restaurantId }, { page, limit, sort: { createdAt: -1 } });
   }
+
+  async availability() {
+    const esewaConfigured = Boolean(config.esewa.merchantId && config.esewa.productCode);
+    const khaltiConfigured = Boolean(config.khalti.publicKey && config.khalti.secretKey);
+    return {
+      esewa: { enabled: esewaConfigured, environment: config.esewa.environment || 'sandbox' },
+      khalti: { enabled: khaltiConfigured, environment: config.khalti.environment || 'sandbox' },
+      card: { enabled: Boolean(config.stripe.publishableKey && config.stripe.secretKey) },
+    };
+  }
 }
 
 export default new PaymentService();

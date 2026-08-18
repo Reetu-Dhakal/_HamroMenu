@@ -4,7 +4,6 @@ import { Helmet } from 'react-helmet-async';
 import { Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { cx } from '../../lib/format';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -17,11 +16,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  const quick = [
-    { label: 'Customer', email: 'customer@himalayanflavors.com' },
-    { label: 'Admin', email: 'admin@himalayanflavors.com' },
-  ];
 
   async function submit(e) {
     e.preventDefault();
@@ -70,21 +64,6 @@ export default function LoginPage() {
             {busy ? <Loader2 size={17} className="animate-spin" /> : 'Sign in'}
           </button>
         </form>
-
-        <div className="mt-5 rounded-2xl border border-dashed border-cream-300 bg-paper px-4 py-3">
-          <p className="text-center text-[11.5px] font-bold uppercase tracking-wide text-ink-faint">Quick demo logins — password123</p>
-          <div className="mt-2 flex justify-center gap-2">
-            {quick.map((q) => (
-              <button
-                key={q.email}
-                className={cx('chip', q.label === 'Admin' && 'bg-clay-600/10 text-clay-700 ring-clay-600/25')}
-                onClick={() => { setEmail(q.email); setPassword('password123'); toast.info(`Filled ${q.label} credentials`); }}
-              >
-                {q.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <p className="mt-6 text-center text-[13px] text-ink-soft">
           New to HamroMenu?{' '}

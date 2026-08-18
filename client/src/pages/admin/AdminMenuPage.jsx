@@ -156,10 +156,10 @@ export default function AdminMenuPage() {
       <Sheet open={sheetOpen} onClose={closeSheet} title={editing ? `Edit · ${editing.name}` : 'Add dish'}>
         <div className="space-y-4">
           <Field label="Name *">
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input w-full" placeholder="Grilled lamb momo" />
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input w-full" placeholder="Dish name" />
           </Field>
           <Field label="Description">
-            <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input w-full resize-none" placeholder="Juicy momos from…" />
+            <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input w-full resize-none" placeholder="Brief description" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Price (Rs.) *">

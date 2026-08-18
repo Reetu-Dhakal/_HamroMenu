@@ -27,7 +27,7 @@ export default function RecommendationRail({ title, subtitle, items, onSelect, o
               <SmartImage src={it.imageUrl} alt={it.name} ratio="4/3" />
               {personalized && it.isFirst && (
                 <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-gradient-to-r from-saffron to-clay-600 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white shadow">
-                  <Sparkles size={9} /> AI pick
+                  <Sparkles size={9} /> Top pick
                 </span>
               )}
             </div>

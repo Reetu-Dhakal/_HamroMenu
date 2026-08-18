@@ -24,6 +24,7 @@ const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage'));
 const AdminAnalyticsPage = lazy(() => import('../pages/admin/AdminAnalyticsPage'));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
+const SuperAdminDashboardPage = lazy(() => import('../pages/super-admin/SuperAdminDashboardPage'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 function Lazy({ children }) {
@@ -63,6 +64,7 @@ export default function AppRouter() {
         <Route path="/admin/analytics" element={<ProtectedRoute roles={['admin']}><Lazy><AdminAnalyticsPage /></Lazy></ProtectedRoute>} />
         <Route path="/admin/staff" element={<ProtectedRoute roles={['admin']}><Lazy><AdminStaffPage /></Lazy></ProtectedRoute>} />
         <Route path="/admin/reviews" element={<ProtectedRoute roles={['admin']}><Lazy><AdminReviewsPage /></Lazy></ProtectedRoute>} />
+        <Route path="/super-admin" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminDashboardPage /></Lazy></ProtectedRoute>} />
 
         <Route path="*" element={<Lazy><NotFound /></Lazy>} />
       </Routes>

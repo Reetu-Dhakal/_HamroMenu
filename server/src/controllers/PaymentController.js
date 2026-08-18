@@ -69,6 +69,13 @@ class PaymentController {
       return ApiResponse.send(res, 200, data);
     })(req, res, next);
   }
+
+  async availability(req, res, next) {
+    asyncHandler(async () => {
+      const data = await paymentService.availability();
+      return ApiResponse.send(res, 200, data);
+    })(req, res, next);
+  }
 }
 
 export default new PaymentController();

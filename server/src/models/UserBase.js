@@ -6,6 +6,7 @@ export const USER_ROLES = {
   STAFF: 'staff',
   KITCHEN: 'kitchen',
   ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin',
 };
 
 export const USER_ROLE_VALUES = Object.values(USER_ROLES);

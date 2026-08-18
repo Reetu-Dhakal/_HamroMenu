@@ -79,8 +79,36 @@ export default function MenuPage() {
         setRecommended(recData);
         const approved = reviewData || [];
         const avg = approved.length ? approved.reduce((s, r) => s + r.rating, 0) / approved.length : null;
-        setMetadata({ reviewCount: approved.length || 0, rating: avg });
+        setMetadata({ reviewCount: approved.length || 0, rating: avg, recType: recData?.type });
         setReviews(approved);
+
+        // Fetch Apriori "frequently ordered together" rules if plan allows
+        if (recData && recData.type !== 'popular-fallback') {
+          try {
+            const aprioriData = await request(`/api/restaurants/${rid}/recommendations/companions?limit=6`).catch(() => null);
+            if (aprioriData && aprioriData.rules && aprioriData.rules.length > 0) {
+              setMetadata(prev => ({ ...prev, hasAprioriRecs: true, aprioriRules: aprioriData.rules }));
+            } else {
+              setMetadata(prev => ({ ...prev, hasAprioriRecs: false }));
+            }
+          } catch (e) {
+            setMetadata(prev => ({ ...prev, hasAprioriRecs: false }));
+          }
+        } else if (recData && recData.type === 'popular-fallback') {
+          // No personalized KNN; set hasAprioriRecs based on plan check
+          // We'll rely on the plan check from FeatureGateService instead
+          setMetadata(prev => ({ ...prev, hasAprioriRecs: false }));
+        } else {
+          setMetadata(prev => ({ ...prev, hasAprioriRecs: false }));
+        }
+
+        // Plan-gated recommendation type handling
+        const recType = recData?.type;
+        const hasPersonalizedRecs = recType !== 'popular-fallback';
+        const hasAprioriRecs = !!(recData?.message && recData.message.includes('not available') === false);
+        
+        // Store rec type in metadata for rendering
+        setMetadata(prev => ({ ...prev, recType, hasPersonalizedRecs, hasAprioriRecs }));
       } catch (e) {
         setError(e.message || 'Could not load this table\'s menu');
       } finally {
@@ -170,7 +198,7 @@ export default function MenuPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search dishes, e.g. momo…"
+                  placeholder="Search dishes, e.g. grilled chicken…"
                   className="w-full rounded-full border border-cream-200 bg-paper py-2.5 pl-11 pr-10 text-[14px] shadow-card"
                 />
                 {search && (
@@ -205,6 +233,33 @@ export default function MenuPage() {
                 onSelect={setSelectedItem}
                 personalized={recommended?.type === 'personalized'}
               />
+            ) : null}
+
+            {/* Frequently Ordered Together - only shows when Apriori available and item in cart */}
+            {cartVisible && !isSearching && metadata?.hasAprioriRecs && (
+              <div className="py-4">
+                <p className="mb-3 px-1 text-[12px] font-bold uppercase tracking-wide text-ink-faint">
+                  Frequently ordered together
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {/* Apriori rules would be rendered here - for now show placeholder */}
+                  {recommended?.aprioriRules?.length ? (
+                    recommended.aprioriRules.map((rule, i) => (
+                      <div key={i} className="rounded-2xl bg-paper p-3 text-center">
+                        <span className="text-[12px] text-ink-faint">{rule.antecedent}</span>
+                        <span className="text-[12px] text-ink-faint ml-2">+</span>
+                        <span className="text-[12px] text-ink-faint">{rule.consequent}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState
+                      icon={ShoppingBag}
+                      title="No pairing suggestions"
+                      copy="Add items to your cart to see frequently ordered together suggestions."
+                    />
+                  )}
+                </div>
+              </div>
             )}
 
             {isSearching ? (

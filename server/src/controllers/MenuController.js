@@ -1,5 +1,6 @@
 import { body, query } from 'express-validator';
 import menuService from '../services/MenuService.js';
+import FeatureGateService from '../services/FeatureGateService.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
@@ -34,6 +35,18 @@ class MenuController {
 
   async addCategory(req, res, next) {
     asyncHandler(async () => {
+      const restaurantId = req.params.restaurantId;
+
+      // Check if restaurant's plan allows adding more categories/items
+      const canAdd = await FeatureGateService.canAddMenuItem(restaurantId);
+      if (!canAdd) {
+        const sub = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
+        const planName = sub?.plan?.name || 'unknown';
+        return next(
+          new ApiError(403, `Cannot add more items on ${planName} plan - upgrade your plan for unlimited menu items`)
+        );
+      }
+
       const category = await menuService.createCategory(req.params.restaurantId, req.body);
       return ApiResponse.send(res, 201, category, 'Category created');
     })(req, res, next);
@@ -55,6 +68,18 @@ class MenuController {
 
   async addItem(req, res, next) {
     asyncHandler(async () => {
+      const restaurantId = req.params.restaurantId;
+
+      // Check if restaurant's plan allows adding more menu items
+      const canAdd = await FeatureGateService.canAddMenuItem(restaurantId);
+      if (!canAdd) {
+        const sub = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
+        const planName = sub?.plan?.name || 'unknown';
+        return next(
+          new ApiError(403, `Cannot add more menu items on ${planName} plan - upgrade your plan for unlimited items`)
+        );
+      }
+
       const item = await menuService.createItem(req.params.restaurantId, req.body);
       return ApiResponse.send(res, 201, item, 'Menu item created');
     })(req, res, next);

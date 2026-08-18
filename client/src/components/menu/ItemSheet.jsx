@@ -3,7 +3,7 @@ import { ChevronRight, Leaf } from 'lucide-react';
 import { Sheet, SmartImage, VegDot, QuantityStepper } from '../ui';
 import { npr, cx } from '../../lib/format';
 
-export default function ItemSheet({ item, open, onClose, onAdd, recipe = {} }) {
+export default function ItemSheet({ item, open, onClose, onAdd, recipe }) {
   const [options, setOptions] = useState({});
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');

@@ -236,8 +236,8 @@ async function seed() {
       favorites: [items[0]._id, items[5]._id, items[10]._id],
     }),
     Customer.create({
-      name: 'Demo Customer',
-      email: 'demo@hamromenu.com',
+      name: 'Sujan Maharjan',
+      email: 'sujan.maharjan@hamromenu.com',
       phone: '+977-9800000005',
       password: customerPw,
       role: 'customer',
@@ -257,7 +257,7 @@ async function seed() {
   console.log(`  Staff:   staff@himalayanflavors.com`);
   console.log(`  Kitchen: kitchen@himalayanflavors.com`);
   console.log(`  Customer: customer@himalayanflavors.com`);
-  console.log(`  Customer: demo@hamromenu.com`);
+  console.log(`  Customer: sujan.maharjan@hamromenu.com`);
   console.log(`Restaurant: ${restaurant.slug} (${restaurant._id})`);
   console.log('-------------------------------------');
 
