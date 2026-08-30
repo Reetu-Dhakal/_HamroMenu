@@ -122,6 +122,13 @@ async regenerateQR(req, res, next) {
     })(req, res, next);
   }
 
+  async listRestaurants(req, res, next) {
+    asyncHandler(async () => {
+      const restaurants = await restaurantRepository.find({}, { timestamps: false });
+      return ApiResponse.send(res, 200, restaurants);
+    })(req, res, next);
+  }
+
   async registerRestaurant(req, res, next) {
     asyncHandler(async () => {
       const { name, slug, description, tagline, cuisine, address, contact, logoUrl, coverUrl,

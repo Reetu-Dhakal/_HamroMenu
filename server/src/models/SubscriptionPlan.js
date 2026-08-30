@@ -62,7 +62,7 @@ export const SUBSCRIPTION_PLAN_FEATURES = {
   },
 };
 
-const SubscriptionPlanSchema = new mongoose.Schema(
+const SubscriptionPlanSchema = new Schema(
   {
     name: {
       type: String,

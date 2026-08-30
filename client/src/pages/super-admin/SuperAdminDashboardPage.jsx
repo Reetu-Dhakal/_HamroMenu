@@ -6,7 +6,7 @@ import { request } from '../../lib/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { npr, cx } from '../../lib/format';
-import { Spinner, StatusPill, EmptyState, Table, Pills, Pill } from '../../components/ui';
+import { Spinner, StatusPill, EmptyState, Chip } from '../../components/ui';
 
 export default function SuperAdminDashboardPage() {
   const { user } = useAuth();
@@ -140,10 +140,10 @@ export default function SuperAdminDashboardPage() {
                         <p className="text-[12px] text-clay-600">Owner: {app.ownerName || '—'}</p>
                         <p className="text-[11px] text-clay-500 mb-2">Registration No: {app.businessRegistrationNumber || '—'}</p>
                         <div className="flex gap-2">
-                          {[['license', 'pan', 'owner_id'].map((docType) => (
-                            <Pill key={docType} className={app.verificationChecks?.documentsUploaded ? 'bg-leaf/20 text-leaf' : 'bg-clay-200 text-clay-500'}>
+                          {['license', 'pan', 'owner_id'].map((docType) => (
+                            <Chip key={docType} className={app.verificationChecks?.documentsUploaded ? 'bg-leaf/20 text-leaf' : 'bg-clay-200 text-clay-500'}>
                               {docType}
-                            </Pill>
+                            </Chip>
                           ))}
                         </div>
                         <p className="text-[11px] text-clay-500">Status: <StatusPill status={app.restaurantStatus || app.verificationStatus} /></p>

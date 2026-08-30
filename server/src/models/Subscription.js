@@ -1,7 +1,7 @@
-import { model, Types } from 'mongoose';
+import { Schema, model, Types } from 'mongoose';
 import { SUBSCRIPTION_PLAN_NAMES, SUBSCRIPTION_PLAN_FEATURES } from './SubscriptionPlan.js';
 
-const SubscriptionSchema = new mongoose.Schema(
+const SubscriptionSchema = new Schema(
   {
     restaurant: {
       type: Types.ObjectId,
@@ -47,7 +47,6 @@ const SubscriptionSchema = new mongoose.Schema(
 );
 
 // Index for fast lookups
-SubscriptionSchema.index({ restaurant: 1 });
 SubscriptionSchema.index({ status: 1 });
 SubscriptionSchema.index({ plan: 1 });
 

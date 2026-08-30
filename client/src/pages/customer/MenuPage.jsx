@@ -221,7 +221,7 @@ export default function MenuPage() {
           </div>
 
           <main className="mx-auto max-w-5xl px-4 sm:px-6">
-            {!isSearching && (
+            {!isSearching ? (
               <RecommendationRail
                 title={recommended?.type === 'personalized' ? 'Recommended for you' : 'Popular with diners'}
                 subtitle={

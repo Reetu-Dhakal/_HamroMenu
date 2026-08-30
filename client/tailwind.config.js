@@ -29,6 +29,9 @@ export default {
           500: '#D95F1E',
           600: '#C24A0E',
         },
+        paper: {
+          DEFAULT: '#FBF7F1',
+        },
         clay: {
           50: '#FDF3EC',
           100: '#FAE3D3',
@@ -71,6 +74,7 @@ export default {
       /bg-clay-/,
       /bg-saffron-/,
       /bg-leaf-/,
+      /bg-paper-/,
       /text-ink-/,
       /text-clay-/,
       /text-cream-/,
@@ -82,6 +86,7 @@ export default {
       /ring-leaf-/,
       /focus-visible:/,
       /placeholder:/,
+      /placeholder:text-ink-faint:/,
       /whitespace-/,
       /divide-/,
       /shadow-/,

@@ -61,7 +61,7 @@ router.patch('/restaurants/:restaurantId/verify', auth, authorize(USER_ROLES.SUP
 router.patch('/restaurants/:restaurantId/status', auth, authorize(USER_ROLES.ADMIN), restaurantController.updateRestaurantStatus);
 
 // Public: menu + QR
-router.get('/restaurants/:restaurantId/menu', auth, restaurantController.getMenu);
+router.get('/restaurants/:restaurantId/menu', auth, menuController.getMenu);
 router.get('/restaurants/:restaurantId/tables/number/:number', restaurantController.tableByNumber);
 router.post('/qr/scan', body('payload').isString().notEmpty(), restaurantController.scanQR);
 router.get('/restaurants/:restaurantId/tables/:tableId/qr', auth, restaurantController.qrForTable);

@@ -1,6 +1,6 @@
-import { model, Types } from 'mongoose';
+import { Schema, model, Types } from 'mongoose';
 
-const InvoiceSchema = new mongoose.Schema(
+const InvoiceSchema = new Schema(
   {
     restaurant: {
       type: Types.ObjectId,
@@ -42,7 +42,7 @@ const InvoiceSchema = new mongoose.Schema(
       type: String, // internal transaction ID
     },
     metadata: {
-      type: mongoose.Schema.Types.Mixed,
+      type: Object,
       default: {},
     },
     paidAt: {
