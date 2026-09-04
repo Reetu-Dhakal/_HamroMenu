@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { motion } from 'framer-motion';
 import { TrendingUp, DollarSign, ShoppingCart, Building } from 'lucide-react';
 import { request } from '../../lib/apiClient';
-import { npr, nprCompact } from '../../lib/format';
+import { npr } from '../../lib/format';
 import DashboardShell from '../../components/layout/DashboardShell';
 import { useToast } from '../../context/ToastContext';
 
@@ -71,16 +71,31 @@ export default function SuperAdminReportsPage() {
         {revenue?.byStatus && revenue.byStatus.length > 0 && (
           <div className="rounded-2xl border border-cream-200 bg-white p-6 shadow-card">
             <h3 className="font-display text-base font-bold text-ink">Revenue by Payment Status</h3>
-            <div className="mt-4 h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenue.byStatus.map(s => ({ name: s._id || 'Unknown', count: s.count, total: s.total || 0 }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3e8d8" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(v) => npr(v)} />
-                  <Bar dataKey="total" fill="#C24A0E" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="mt-4 space-y-3">
+              {revenue.byStatus.map((s) => (
+                <div key={s._id} className="flex items-center gap-4">
+                  <span className="w-24 text-sm font-medium text-ink-soft capitalize">{s._id || 'Unknown'}</span>
+                  <div className="flex-1 h-6 overflow-hidden rounded-full bg-cream-100">
+                    <div className="h-full rounded-full bg-clay-500" style={{ width: `${Math.min(100, (s.count / (overview?.totalOrders || 1)) * 100)}%` }} />
+                  </div>
+                  <span className="w-20 text-right text-sm font-semibold text-ink">{npr(s.total || 0)}</span>
+                  <span className="w-12 text-right text-xs text-ink-faint">{s.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {revenue?.byPlan && revenue.byPlan.length > 0 && (
+          <div className="rounded-2xl border border-cream-200 bg-white p-6 shadow-card">
+            <h3 className="font-display text-base font-bold text-ink">Subscriptions by Plan</h3>
+            <div className="mt-4 space-y-3">
+              {revenue.byPlan.map((p) => (
+                <div key={p._id} className="flex items-center justify-between rounded-xl bg-cream-50 px-4 py-3">
+                  <span className="text-sm font-semibold text-ink">{p.plan?.name || 'Unknown'}</span>
+                  <span className="text-sm text-ink-faint">{p.count} restaurants</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
