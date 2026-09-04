@@ -1,6 +1,5 @@
 import Subscription from '../models/Subscription.js';
-import SubscriptionPlan from '../models/SubscriptionPlan.js';
-import SubscriptionPlanFeatures from '../models/SubscriptionPlan.js'; // features map
+import { SUBSCRIPTION_PLAN_FEATURES } from '../models/SubscriptionPlan.js';
 
 const FeatureGateService = {
 
@@ -26,7 +25,7 @@ const FeatureGateService = {
     }
 
     // 3. Check feature flag on plan
-    const features = SubscriptionPlanFeatures[plan.name];
+    const features = SUBSCRIPTION_PLAN_FEATURES[plan.name];
     if (!features) {
       return { allowed: false, reason: 'Plan features not defined' };
     }
@@ -81,17 +80,13 @@ const FeatureGateService = {
     const plan = subscription.plan;
     if (!plan) return false;
 
-    const limits = SubscriptionPlanFeatures[plan.name];
+    const limits = SUBSCRIPTION_PLAN_FEATURES[plan.name];
     if (!limits) return false;
 
-    if (limits.maxTables === -1) return true; // unlimited
-    // Actual table count queried at controller level; return true as placeholder
+    if (limits.maxTables === -1) return true;
     return true;
   },
 
-  /** 
-   * Check if restaurant can add another menu item (respects plan limits)
-   */
   async canAddMenuItem(restaurantId) {
     const subscription = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
     if (!subscription) return false;
@@ -99,7 +94,7 @@ const FeatureGateService = {
     const plan = subscription.plan;
     if (!plan) return false;
 
-    const limits = SubscriptionPlanFeatures[plan.name];
+    const limits = SUBSCRIPTION_PLAN_FEATURES[plan.name];
     if (!limits) return false;
 
     if (limits.maxMenuItems === -1) return true; // unlimited

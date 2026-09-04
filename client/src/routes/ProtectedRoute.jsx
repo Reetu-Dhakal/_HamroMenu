@@ -9,7 +9,7 @@ export default function ProtectedRoute({ roles, children }) {
   if (booting) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" state={{ from: location.pathname + location.search, context: 'login' }} replace />;
   if (roles && !roles.includes(user.role)) {
-    const home = user.role === 'staff' ? '/staff' : user.role === 'kitchen' ? '/kitchen' : user.role === 'admin' ? '/admin' : '/order-history';
+    const home = user.role === 'super_admin' ? '/super-admin' : user.role === 'staff' ? '/staff' : user.role === 'kitchen' ? '/kitchen' : user.role === 'admin' ? '/admin' : '/order-history';
     return <Navigate to={home} replace />;
   }
   return children;

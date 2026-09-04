@@ -5,6 +5,7 @@ import { request } from '../lib/apiClient';
 const AuthContext = createContext(null);
 
 export const ROLE_HOME = {
+  super_admin: '/super-admin',
   admin: '/admin',
   staff: '/staff',
   kitchen: '/kitchen',
@@ -36,6 +37,15 @@ export function AuthProvider({ children }) {
   const register = useCallback(
     async (data) => {
       const payload = await request('/api/auth/register/customer', { method: 'POST', body: data });
+      applySession(payload);
+      return payload.user;
+    },
+    [applySession]
+  );
+
+  const registerRestaurant = useCallback(
+    async (data) => {
+      const payload = await request('/api/auth/register/restaurant-owner', { method: 'POST', body: data });
       applySession(payload);
       return payload.user;
     },
@@ -91,8 +101,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, login, register, logout, refreshProfile, home: user ? roleHome(user.role) : '/', role: user?.role || null }),
-    [user, login, register, logout, refreshProfile]
+    () => ({ user, login, register, registerRestaurant, logout, refreshProfile, home: user ? roleHome(user.role) : '/', role: user?.role || null }),
+    [user, login, register, registerRestaurant, logout, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -14,6 +14,9 @@ const ProfilePage = lazy(() => import('../pages/customer/ProfilePage'));
 const ReviewsPage = lazy(() => import('../pages/customer/ReviewsPage'));
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'));
+const CustomerRegisterPage = lazy(() => import('../pages/auth/CustomerRegisterPage'));
+const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage'));
 const StaffDashboardPage = lazy(() => import('../pages/staff/StaffDashboardPage'));
 const KitchenDashboardPage = lazy(() => import('../pages/kitchen/KitchenDashboardPage'));
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage'));
@@ -24,7 +27,14 @@ const AdminOrdersPage = lazy(() => import('../pages/admin/AdminOrdersPage'));
 const AdminAnalyticsPage = lazy(() => import('../pages/admin/AdminAnalyticsPage'));
 const AdminStaffPage = lazy(() => import('../pages/admin/AdminStaffPage'));
 const AdminReviewsPage = lazy(() => import('../pages/admin/AdminReviewsPage'));
+const AdminSubscriptionPage = lazy(() => import('../pages/admin/AdminSubscriptionPage'));
+const AdminVerificationPage = lazy(() => import('../pages/admin/AdminVerificationPage'));
+const AdminSettingsPage = lazy(() => import('../pages/admin/AdminSettingsPage'));
 const SuperAdminDashboardPage = lazy(() => import('../pages/super-admin/SuperAdminDashboardPage'));
+const SuperAdminUsersPage = lazy(() => import('../pages/super-admin/SuperAdminUsersPage'));
+const SuperAdminPlansPage = lazy(() => import('../pages/super-admin/SuperAdminPlansPage'));
+const SuperAdminSubscriptionsPage = lazy(() => import('../pages/super-admin/SuperAdminSubscriptionsPage'));
+const SuperAdminReportsPage = lazy(() => import('../pages/super-admin/SuperAdminReportsPage'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 function Lazy({ children }) {
@@ -52,6 +62,9 @@ export default function AppRouter() {
 
         <Route path="/login" element={<Lazy><LoginPage /></Lazy>} />
         <Route path="/register" element={<Lazy><RegisterPage /></Lazy>} />
+        <Route path="/customer/register" element={<Lazy><CustomerRegisterPage /></Lazy>} />
+        <Route path="/forgot-password" element={<Lazy><ForgotPasswordPage /></Lazy>} />
+        <Route path="/reset-password" element={<Lazy><ResetPasswordPage /></Lazy>} />
 
         <Route path="/staff" element={<ProtectedRoute roles={['staff', 'admin']}><Lazy><StaffDashboardPage /></Lazy></ProtectedRoute>} />
         <Route path="/kitchen" element={<ProtectedRoute roles={['kitchen', 'admin']}><Lazy><KitchenDashboardPage /></Lazy></ProtectedRoute>} />
@@ -64,7 +77,15 @@ export default function AppRouter() {
         <Route path="/admin/analytics" element={<ProtectedRoute roles={['admin']}><Lazy><AdminAnalyticsPage /></Lazy></ProtectedRoute>} />
         <Route path="/admin/staff" element={<ProtectedRoute roles={['admin']}><Lazy><AdminStaffPage /></Lazy></ProtectedRoute>} />
         <Route path="/admin/reviews" element={<ProtectedRoute roles={['admin']}><Lazy><AdminReviewsPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/subscription" element={<ProtectedRoute roles={['admin']}><Lazy><AdminSubscriptionPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/verification" element={<ProtectedRoute roles={['admin']}><Lazy><AdminVerificationPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute roles={['admin']}><Lazy><AdminSettingsPage /></Lazy></ProtectedRoute>} />
+
         <Route path="/super-admin" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminDashboardPage /></Lazy></ProtectedRoute>} />
+        <Route path="/super-admin/users" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminUsersPage /></Lazy></ProtectedRoute>} />
+        <Route path="/super-admin/plans" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminPlansPage /></Lazy></ProtectedRoute>} />
+        <Route path="/super-admin/subscriptions" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminSubscriptionsPage /></Lazy></ProtectedRoute>} />
+        <Route path="/super-admin/reports" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminReportsPage /></Lazy></ProtectedRoute>} />
 
         <Route path="*" element={<Lazy><NotFound /></Lazy>} />
       </Routes>

@@ -68,7 +68,7 @@ api.interceptors.response.use(
       }
     }
     if (isUnAuth && !isRefreshCall) {
-      api.clearSession?.();
+      api.clearAuth();
       window.dispatchEvent(new CustomEvent('hm:auth-expired'));
     }
     return Promise.reject(error);

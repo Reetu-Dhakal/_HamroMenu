@@ -1,10 +1,21 @@
-import './config/mongoose.js'; // assuming mongoose connection setup
-import SubscriptionPlan from './server/src/models/SubscriptionPlan.js';
-import Subscription from './server/src/models/Subscription.js';
-import Invoice from './server/src/models/Invoice.js';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, '../../.env') });
+
+import SubscriptionPlan from '../models/SubscriptionPlan.js';
+import Subscription from '../models/Subscription.js';
+import Invoice from '../models/Invoice.js';
+import Restaurant from '../models/Restaurant.js';
 
 const importData = async () => {
   try {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/hamromenu');
+    console.log('MongoDB connected');
+
     // 1. Seed 4 subscription plans
     await SubscriptionPlan.deleteMany({});
     await SubscriptionPlan.insertMany([
@@ -27,7 +38,7 @@ const importData = async () => {
       },
       {
         name: 'Basic',
-        description: 'Basic plan: up to 15 tables, 100 menu items, 3 staff accounts. Basic reports. No recommendations/apriori.',
+        description: 'Basic plan: up to 15 tables, 100 menu items, 3 staff accounts. Basic reports.',
         price: 29,
         billingCycle: 'MONTHLY',
         maxTables: 15,
@@ -44,7 +55,7 @@ const importData = async () => {
       },
       {
         name: 'Pro',
-        description: 'Pro plan: unlimited tables/items/staff. KNN recommendations + Apriori "frequently ordered together". Advanced analytics dashboard.',
+        description: 'Pro plan: unlimited tables/items/staff. KNN recommendations + Apriori. Advanced analytics.',
         price: 79,
         billingCycle: 'MONTHLY',
         maxTables: -1,
@@ -61,7 +72,7 @@ const importData = async () => {
       },
       {
         name: 'Premium',
-        description: 'Premium plan: everything in Pro + custom branding (remove HamroMenu badge), export reports, multiple staff roles, priority verification review.',
+        description: 'Premium plan: everything in Pro + custom branding, export reports, priority support.',
         price: 199,
         billingCycle: 'MONTHLY',
         maxTables: -1,
@@ -78,18 +89,16 @@ const importData = async () => {
       },
     ]);
 
-    console.log('✅ Subscription plans seeded');
+    console.log('Subscription plans seeded');
 
     // 2. Initialize Subscription records for all existing restaurants
-    const restaurants = await globalThis.mongoose.models.Restaurant.find({});
+    const restaurants = await Restaurant.find({});
     console.log(`Found ${restaurants.length} restaurants`);
 
     for (const restaurant of restaurants) {
-      // Check if restaurant already has a subscription
       const existingSub = await Subscription.findOne({ restaurant: restaurant._id });
       if (existingSub) continue;
 
-      // Default to Free/Trial plan
       const freePlan = await SubscriptionPlan.findOne({ name: 'Free / Trial' });
       if (!freePlan) {
         console.error('Free/Trial plan not found!');
@@ -101,28 +110,27 @@ const importData = async () => {
         plan: freePlan._id,
         status: 'TRIALING',
         currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days trial
+        currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         autoRenew: true,
       });
       await subscription.save();
-      console.log(`✅ Subscription TRIALING for restaurant: ${restaurant.name}`);
+      console.log(`Subscription TRIALING for restaurant: ${restaurant.name}`);
     }
 
     // 3. Create initial invoices for trial restaurants
     const trialRestaurants = await Restaurant.find({
-      'verificationStatus': 'VERIFIED',
-      'restaurantStatus': 'ACTIVE',
-    }).limit(20); // limit for demo
+      verificationStatus: 'VERIFIED',
+      restaurantStatus: 'ACTIVE',
+    }).limit(20);
 
     for (const restaurant of trialRestaurants) {
       const sub = await Subscription.findOne({ restaurant: restaurant._id });
       if (!sub || sub.status !== 'TRIALING') continue;
 
-      // Create a PENDING invoice for the trial period
       const invoice = new Invoice({
         restaurant: restaurant._id,
         subscription: sub._id,
-        amount: 0, // free trial
+        amount: 0,
         billingPeriodStart: new Date(),
         billingPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         status: 'PENDING',
@@ -131,10 +139,10 @@ const importData = async () => {
       await invoice.save();
     }
 
-    console.log('✅ Initial subscriptions and invoices created');
+    console.log('Initial subscriptions and invoices created');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Seed error:', error);
+    console.error('Seed error:', error);
     process.exit(1);
   }
 };

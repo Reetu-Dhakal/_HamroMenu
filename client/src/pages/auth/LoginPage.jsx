@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Mail, Lock, Loader2, ArrowLeft } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, ROLE_HOME } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, home } = useAuth();
   const toast = useToast();
   const nav = useNavigate();
   const location = useLocation();
-  const from = location.state?.from || '/';
+  const from = location.state?.from || home;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,9 +22,10 @@ export default function LoginPage() {
     setError('');
     setBusy(true);
     try {
-      await login(email, password);
+      const user = await login(email, password);
       toast.success('Welcome back!');
-      nav(from, { replace: true });
+      const dest = location.state?.from || ROLE_HOME[user.role] || '/';
+      nav(dest, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -60,6 +61,10 @@ export default function LoginPage() {
 
           {error && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-[12.5px] font-semibold text-red-700">{error}</p>}
 
+          <div className="flex items-center justify-end">
+            <Link to="/forgot-password" className="text-[12.5px] font-semibold text-clay-600 hover:text-clay-700">Forgot password?</Link>
+          </div>
+
           <button type="submit" disabled={busy} className="btn-primary w-full">
             {busy ? <Loader2 size={17} className="animate-spin" /> : 'Sign in'}
           </button>
@@ -67,7 +72,11 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-[13px] text-ink-soft">
           New to HamroMenu?{' '}
-          <Link to="/register" state={{ from }} className="font-bold text-clay-700 hover:underline">Create an account</Link>
+          <Link to="/register" state={{ from }} className="font-bold text-clay-700 hover:underline">Register your restaurant</Link>
+        </p>
+        <p className="mt-2 text-center text-[13px] text-ink-soft">
+          Want to order food?{' '}
+          <Link to="/customer/register" state={{ from }} className="font-bold text-clay-700 hover:underline">Create a customer account</Link>
         </p>
         <Link to={from} className="mx-auto mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-faint hover:text-ink">
           <ArrowLeft size={14} /> Back

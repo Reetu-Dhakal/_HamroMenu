@@ -2,6 +2,10 @@ import Restaurant from '../models/Restaurant.js';
 import Subscription from '../models/Subscription.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import Invoice from '../models/Invoice.js';
+import Order from '../models/Order.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 class SuperAdminController {
   async overview(req, res, next) {
@@ -32,7 +36,7 @@ class SuperAdminController {
 
   async applications(req, res, next) {
     asyncHandler(async () => {
-      const restaurants = await req.app.get('restaurantModel').find({
+      const restaurants = await Restaurant.find({
         verificationStatus: 'PENDING',
         restaurantStatus: 'PENDING',
       }).select('name address businessRegistrationNumber owner verificationChecks verificationNote createdAt');
@@ -43,7 +47,7 @@ class SuperAdminController {
   async applicationDetail(req, res, next) {
     asyncHandler(async () => {
       const { id } = req.params;
-      const restaurant = await req.app.get('restaurantModel').findById(id).select('name address contact businessRegistrationNumber panNumber documents verificationStatus restaurantStatus verificationChecks verificationNote owner verifiedAt approvedAt rejectedAt');
+      const restaurant = await Restaurant.findById(id).select('name address contact businessRegistrationNumber panNumber documents verificationStatus restaurantStatus verificationChecks verificationNote owner verifiedAt approvedAt rejectedAt');
       if (!restaurant) throw new ApiError(404, 'Restaurant application not found');
       return ApiResponse.send(res, 200, restaurant, 'Application detail retrieved');
     })(req, res, next);
@@ -52,7 +56,7 @@ class SuperAdminController {
   async approveApplication(req, res, next) {
     asyncHandler(async () => {
       const { id } = req.params;
-      const restaurant = await req.app.get('restaurantModel').findByIdAndUpdate(
+      const restaurant = await Restaurant.findByIdAndUpdate(
         id,
         { verificationStatus: 'VERIFIED', restaurantStatus: 'APPROVED', verifiedAt: new Date() },
         { new: true }
@@ -67,7 +71,7 @@ class SuperAdminController {
       const { id } = req.params;
       const { reason } = req.body;
       if (!reason) throw new ApiError(400, 'Rejection reason is required');
-      const restaurant = await req.app.get('restaurantModel').findByIdAndUpdate(
+      const restaurant = await Restaurant.findByIdAndUpdate(
         id,
         { verificationStatus: 'REJECTED', restaurantStatus: 'REJECTED', rejectedAt: new Date(), verificationNote: reason },
         { new: true }
@@ -82,7 +86,7 @@ class SuperAdminController {
       const { id } = req.params;
       const { reason } = req.body;
       if (!reason) throw new ApiError(400, 'Request reason is required');
-      const restaurant = await req.app.get('restaurantModel').findByIdAndUpdate(
+      const restaurant = await Restaurant.findByIdAndUpdate(
         id, { verificationStatus: 'MANUAL_REVIEW', verificationNote: reason }, { new: true }
       );
       if (!restaurant) throw new ApiError(404, 'Restaurant application not found');

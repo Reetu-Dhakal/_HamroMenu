@@ -57,7 +57,7 @@ class KitchenPriorityQueue {
       const leftChild = 2 * index + 1;
       const rightChild = 2 * index + 2;
 
-      if (leftChild <= lastIndex && this.heap[leftIndex].priority < this.heap[smallest].priority) {
+      if (leftChild <= lastIndex && this.heap[leftChild].priority < this.heap[smallest].priority) {
         smallest = leftChild;
       }
       if (rightChild <= lastIndex && this.heap[rightChild].priority < this.heap[smallest].priority) {

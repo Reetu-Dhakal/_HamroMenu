@@ -117,7 +117,7 @@ class RecommendationService {
 
   /** Find K nearest neighbours for a user. */
   async knnNeighbours(restaurantId, customerId, k = SIMILARITY_TOP_K) {
-    const { userVectors } = await this.buildMatrix(restaurantId, customerId);
+    const userVectors = await this.buildMatrix(restaurantId, customerId);
     const targetVector = userVectors[customerId] || {};
 
     // Compute similarity between target and all other users
@@ -236,7 +236,6 @@ class RecommendationService {
 
     // 1. User-user similarity for KNN
     const userVectors = await this.buildMatrix(rid);
-    const userSimilarity = this.computeUserSimilarity(userVectors);
 
     // 2. Apriori association rules for "Frequently Ordered Together"
     const { rules: aprioriRules, itemsets } = apriori(orders, 0.02, 0.3, 1.0);
@@ -269,12 +268,11 @@ class RecommendationService {
     let doc = await this.model.findOne({ restaurant: rid });
     if (!doc) doc = new this.model({ restaurant: rid });
     doc.similarity = similarity;
-    doc.userSimilarity = userSimilarity;
     doc.coOccurrence = coOccurrence;
-    doc.aprioriRules = aprioriRules; // full rules for admin view
     doc.itemCount = Object.keys(itemVectors).length;
-    const { stats } = await this.buildMatrix(rid);
-    doc.stats = stats;
+    const { orders: allOrders } = await this.fetchInteractions(rid);
+    const userCount = new Set(allOrders.map(o => o.customer.toString())).size;
+    doc.stats = { users: userCount, orders: allOrders.length, reviews: 0 };
     doc.computedAt = new Date();
     await doc.save();
     return doc;
@@ -326,7 +324,7 @@ class RecommendationService {
     if (!customerId) {
       return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
     }
-    const [{ userVectors }, cache] = await Promise.all([this.buildMatrix(restaurantId, customerId), this.cacheFor(restaurantId)]);
+    const [userVectors, cache] = await Promise.all([this.buildMatrix(restaurantId, customerId), this.cacheFor(restaurantId)]);
     const userVector = userVectors[customerId] || {};
 
     // If user has no order history, fallback to bestsellers

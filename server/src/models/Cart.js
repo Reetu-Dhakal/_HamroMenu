@@ -97,6 +97,5 @@ CartSchema.methods.isEmpty = function () {
   return this.items.length === 0;
 };
 
-CartSchema.index({ customer: 1 }, { unique: true });
-CartSchema.index({ restaurant: 1, customer: 1 });
+CartSchema.index({ customer: 1, restaurant: 1 }, { unique: true });
 export default model('Cart', CartSchema);
