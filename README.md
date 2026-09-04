@@ -2,7 +2,7 @@
 
 **Your restaurant. One scan away.**
 
-HamroMenu is a QR-based, multi-restaurant ordering and management platform. A guest scans the QR code on their table, browses the digital menu, orders, watches the kitchen prepare it live, and pays however they like — no app installs, no account required to start ordering. On the restaurant side, staff, kitchen and admin each get a real-time dashboard tuned for their job, plus a super-admin console that runs the whole platform and verifies new restaurants.
+HamroMenu is a QR-based, multi-restaurant ordering and management SaaS platform. A guest scans the QR code on their table, browses the digital menu, orders, watches the kitchen prepare it live, and pays however they like — no app installs, no account required to start ordering. On the restaurant side, restaurant owners, staff, kitchen and admin each get a real-time dashboard tuned for their job, plus a super-admin console that runs the whole platform, verifies new restaurants, and manages subscription packages.
 
 - **Customer** → scan, order, pay, live-track
 - **Restaurant** → admin menu/QR, staff service, kitchen queue (real time over Socket.io)
@@ -58,6 +58,28 @@ route → controller → service → repository → Mongoose model → MongoDB
 
 ---
 
+## Client routes
+
+| Path | Component | Access |
+| ---- | --------- | ------ |
+| `/` | Landing page | Public |
+| `/menu` · `/menu/table/:tableNumber` | Customer menu | Public |
+| `/cart` | Cart | Public |
+| `/checkout` | Checkout | `customer` |
+| `/order/:orderId/track` | Order tracking | Public |
+| `/order-history` · `/profile` · `/reviews` | Account area | `customer` |
+| `/login` | Sign in (all roles) | Public |
+| `/register` | Restaurant owner registration | Public |
+| `/customer/register` | Customer registration | Public |
+| `/staff` | Staff dashboard | `staff`, `admin` |
+| `/kitchen` | Kitchen dashboard | `kitchen`, `admin` |
+| `/admin` + sub-pages (menu, categories, tables, orders, analytics, staff, reviews, subscription, verification, settings) | Owner/Manager dashboard | `admin` |
+| `/super-admin` | Platform dashboard | `super_admin` |
+
+Protected routes render a `FullScreenLoader` while the session is bootstrapping and redirect unauthenticated users to `/login`, preserving the intended destination.
+
+---
+
 ## Roles
 
 | Role          | Scope        | What they can do                                                       |
@@ -69,6 +91,24 @@ route → controller → service → repository → Mongoose model → MongoDB
 | `super_admin` | Platform     | Verify restaurants, manage all restaurants & users, platform reports    |
 
 Restaurant data is isolated at the database/query level — an admin, staff or kitchen user only ever sees their own restaurant's data. The `ensureRestaurantContext` middleware derives the restaurant from the authenticated user (or QR scan), never from a client-supplied ID.
+
+### Authentication & role-based routing
+
+- **`/register`** — restaurant owner registration (separate form, submits to `POST /api/auth/register/restaurant-owner`).
+- **`/customer/register`** — customer registration (submits to `POST /api/auth/register/customer`).
+- **`/login`** — single sign-in for all roles; credentials are validated against the correct role model.
+
+After a successful login/registration, users are redirected to their role-specific dashboard via a central `ROLE_HOME` mapping (also used by `ProtectedRoute`):
+
+| Role          | Home dashboard |
+| ------------- | -------------- |
+| `super_admin` | `/super-admin` |
+| `admin`       | `/admin`       |
+| `kitchen`     | `/kitchen`     |
+| `staff`       | `/staff`       |
+| `customer`    | `/order-history` |
+
+If a guest lands on a protected route, `ProtectedRoute` redirects to `/login` and records the original path — the user is returned there after signing in.
 
 ---
 
@@ -89,10 +129,10 @@ Live socket-fed board: confirm orders, send to kitchen, serve, collect cash, pri
 A **priority queue** that ranks orders by `waitMinutes × 2 + statusWeight` (High / Medium / Low priority) and rebalances every 30 seconds. Kitchen accepts orders, marks items/orders ready, and auto-notifies staff + customer via sockets.
 
 ### Admin dashboard (`/admin`)
-Overview analytics, menu & category CRUD, tables + QR generation/regeneration, orders, coupons, team (staff/kitchen accounts), reports (revenue by day, peak hours, table turnover), and restaurant settings with an open/closed toggle.
+Overview analytics, menu & category CRUD, tables + QR generation/regeneration, orders, coupons, team (staff/kitchen accounts), reports (revenue by day, peak hours, table turnover), and restaurant settings with an open/closed toggle — plus **subscription & billing**, **business verification**, and **settings** pages.
 
 ### Super-admin (`/super-admin`)
-Platform-wide: total & pending restaurants, active/suspended status, verify restaurants via a rule-based checklist (business registration, PAN, documents), manage all users, and platform reports.
+Platform-wide: total & pending restaurants, active/suspended status, verify restaurants via a rule-based checklist (business registration, PAN, documents), manage all users, manage subscription packages, view subscriptions, view platform reports and payments.
 
 ---
 
@@ -144,11 +184,23 @@ npm run dev                  # http://localhost:5173
 
 ### Demo flow
 1. Open the landing page at `/`, or scan a table QR from the admin "Tables & QR" tab.
-2. Browse the menu, add to cart, sign in at checkout, place the order.
+2. Browse the menu, add to cart, sign in at checkout (guests are redirected to `/login` and returned to checkout), place the order.
 3. Kitchen accepts & prepares; staff confirms, serves and collects the bill; the customer tracks each status live.
 4. Admins manage everything at `/admin`; the platform owner uses `/super-admin`.
 
-> Demo accounts (`password` = `password123`): `admin@himalayanflavors.com`, `staff@himalayanflavors.com`, `kitchen@himalayanflavors.com`, `customer@himalayanflavors.com`.
+### Demo accounts
+
+All sample accounts use the password **`password123`**:
+
+| Role | Email |
+| ---- | ----- |
+| Super Admin | *(create via `/api/auth/register/super-admin`)* |
+| Admin (Owner) | `admin@himalayanflavors.com` |
+| Staff | `staff@himalayanflavors.com` |
+| Kitchen | `kitchen@himalayanflavors.com` |
+| Customer | `customer@himalayanflavors.com` |
+
+New accounts can be created from the UI: restaurant owners register at `/register`, customers at `/customer/register`.
 
 ---
 
