@@ -22,7 +22,7 @@ export default function DashboardShell({ brand = 'HamroMenu', sections, accent =
         <span className={cx('flex h-9 w-9 items-center justify-center rounded-xl font-display text-lg font-bold text-white', accent ? 'bg-clay-600' : 'bg-ink')}>
           H
         </span>
-        <span className="font-display text-lg font-semibold tracking-tight text-ink">{brand}</span>
+        <span className="font-script text-[22px] font-bold leading-none text-ink">{brand}</span>
       </Link>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4">
         {sections.map((group) => (
@@ -77,7 +77,7 @@ export default function DashboardShell({ brand = 'HamroMenu', sections, accent =
             <span className={cx('flex h-7 w-7 items-center justify-center rounded-lg font-display text-sm font-bold text-white', accent ? 'bg-clay-600' : 'bg-ink')}>
               H
             </span>
-            <span className="font-display font-semibold text-ink">{brand}</span>
+            <span className="font-script text-xl font-bold leading-none text-ink">{brand}</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <button

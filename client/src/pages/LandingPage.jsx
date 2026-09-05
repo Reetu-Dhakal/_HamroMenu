@@ -490,7 +490,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= CUSTOMER EXPERIENCE ================= */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-clay-800 via-clay-900 to-[#3a1a0d] py-20 text-cream-50">
+      <section className="relative overflow-hidden bg-gradient-to-br from-clay-800 via-clay-900 to-[#14112E] py-20 text-cream-50">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-saffron/20 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
@@ -723,10 +723,9 @@ export default function LandingPage() {
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-clay-100 text-clay-600">
                     <Check size={16} />
                   </span>
-
                   <div>
                     <h3 className="font-bold text-clay-900">
-                      Customer-based recommendations
+                      Collaborative filtering
                     </h3>
 
                     <p className="mt-1 text-sm leading-relaxed text-gray-600">
@@ -808,7 +807,7 @@ export default function LandingPage() {
             {[
               {
                 icon: Smartphone,
-                title: 'Free',
+                title: 'Basic',
                 price: 'Free',
                 description: 'For restaurants starting with digital menus.',
                 points: [

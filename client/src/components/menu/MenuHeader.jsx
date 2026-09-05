@@ -23,7 +23,7 @@ export default function MenuHeader({ restaurant, table, collapsed = false }) {
               <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-saffron-light">
                 <QrCode size={12} /> Table {table?.number}
               </div>
-              <h1 className="font-display text-[26px] font-bold leading-tight text-white drop-shadow-sm sm:text-3xl">
+              <h1 className="font-script text-[30px] font-bold leading-tight text-white drop-shadow-sm sm:text-3xl">
                 {restaurant?.name}
               </h1>
               <p className="mt-1 line-clamp-1 max-w-md text-[13px] font-medium text-white/85">{restaurant?.tagline || restaurant?.description}</p>
