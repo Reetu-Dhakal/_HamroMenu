@@ -27,7 +27,7 @@ const ADMIN_SECTIONS = [
 const STATUS_CONFIG = {
   VERIFIED: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', label: 'Verified' },
   PENDING: { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Pending Verification' },
-  MANUAL_REVIEW: { icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Under Review' },
+  MANUAL_REVIEW: { icon: Clock, color: 'text-lime-600', bg: 'bg-lime-50', label: 'Under Review' },
   REJECTED: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', label: 'Verification Failed' },
 };
 
@@ -95,8 +95,8 @@ export default function AdminVerificationPage() {
           <div className="mt-4 flex items-center gap-4">
             <div className="relative h-16 w-16">
               <svg className="h-16 w-16 -rotate-90" viewBox="0 0 36 36">
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E2E6F4" strokeWidth="3" />
-                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#4F46E5" strokeWidth="3" strokeDasharray={`${completeness}, 100`} />
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#D8EFE1" strokeWidth="3" />
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#059669" strokeWidth="3" strokeDasharray={`${completeness}, 100`} />
               </svg>
               <span className="absolute inset-0 flex items-center justify-center font-display text-sm font-bold text-ink">{completeness}%</span>
             </div>

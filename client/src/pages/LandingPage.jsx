@@ -43,7 +43,7 @@ const btn = {
   ghost:
     'inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-clay-700 transition-colors hover:bg-clay-50',
 
-  amber:
+  lime:
     'inline-flex items-center justify-center gap-2 rounded-full bg-saffron px-6 py-3 text-sm font-semibold text-clay-900 shadow-lg shadow-saffron/25 transition-all hover:bg-saffron-light active:scale-[0.98]',
 };
 
@@ -232,7 +232,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= HOW IT WORKS ================= */}
-      <section id="how-it-works" className="relative bg-brown py-20">
+      <section id="how-it-works" className="relative bg-cream-100 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHead
             title="Your table, your phone, your order"
@@ -490,7 +490,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= CUSTOMER EXPERIENCE ================= */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-clay-800 via-clay-900 to-[#14112E] py-20 text-cream-50">
+      <section className="relative overflow-hidden bg-gradient-to-br from-clay-800 via-clay-900 to-[#032A1F] py-20 text-cream-50">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-saffron/20 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
@@ -530,7 +530,7 @@ export default function LandingPage() {
 
               <Link
                 to="/menu"
-                className={`${btn.amber} mt-8`}
+                className={`${btn.lime} mt-8`}
               >
                 Browse sample menu
                 <ArrowRight size={16} />
@@ -920,7 +920,7 @@ export default function LandingPage() {
                 <Link
                   to="/register"
                   className={`mt-8 ${
-                    plan.popular ? btn.amber : btn.soft
+                    plan.popular ? btn.lime : btn.soft
                   }`}
                 >
                   Get started
@@ -957,7 +957,7 @@ export default function LandingPage() {
 
             <Link
               to="/register"
-              className={`${btn.amber} shrink-0 whitespace-nowrap`}
+              className={`${btn.lime} shrink-0 whitespace-nowrap`}
             >
               Create your restaurant
               <ArrowRight size={16} />

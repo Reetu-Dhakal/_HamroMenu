@@ -475,7 +475,7 @@ export default function StaffDashboardPage() {
               label="Confirmed"
               value={counts?.confirmed ?? '—'}
               icon={CheckCircle2}
-              tone="blue"
+              tone="clay"
             />
 
             <StatCard
@@ -833,7 +833,7 @@ function SidebarItem({
 function StatCard({ label, value, icon: Icon, tone }) {
   const tones = {
     clay: 'bg-clay-50 text-clay-700',
-    blue: 'bg-blue-50 text-blue-700',
+    blue: 'bg-clay-100 text-clay-700',
     orange: 'bg-saffron/10 text-saffron-deep',
     green: 'bg-leaf/10 text-leaf-dark',
     neutral: 'bg-cream-100 text-ink-soft',

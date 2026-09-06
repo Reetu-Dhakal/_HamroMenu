@@ -17,7 +17,7 @@ const SA_SECTIONS = [
 ];
 
 const ROLE_LABELS = { customer: 'Customer', staff: 'Staff', kitchen: 'Kitchen', admin: 'Admin', super_admin: 'Super Admin' };
-const ROLE_COLORS = { customer: 'bg-blue-100 text-blue-700', staff: 'bg-purple-100 text-purple-700', kitchen: 'bg-orange-100 text-orange-700', admin: 'bg-clay-100 text-clay-700', super_admin: 'bg-red-100 text-red-700' };
+const ROLE_COLORS = { customer: 'bg-clay-100 text-clay-700', staff: 'bg-purple-100 text-purple-700', kitchen: 'bg-saffron/15 text-saffron-deep', admin: 'bg-clay-200 text-clay-800', super_admin: 'bg-red-100 text-red-700' };
 
 export default function SuperAdminUsersPage() {
   const toast = useToast();

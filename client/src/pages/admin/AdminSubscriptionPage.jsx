@@ -76,7 +76,7 @@ export default function AdminSubscriptionPage() {
   if (loading) return <DashboardShell brand="HamroMenu" sections={ADMIN_SECTIONS}><div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-clay-600 border-t-transparent" /></div></DashboardShell>;
 
   const currentPlan = subscription?.plan;
-  const statusColor = { ACTIVE: 'bg-green-100 text-green-700', TRIALING: 'bg-blue-100 text-blue-700', PAST_DUE: 'bg-red-100 text-red-700', EXPIRED: 'bg-red-100 text-red-700', CANCELLED: 'bg-gray-100 text-gray-600' };
+  const statusColor = { ACTIVE: 'bg-green-100 text-green-700', TRIALING: 'bg-saffron/15 text-saffron-deep', PAST_DUE: 'bg-red-100 text-red-700', EXPIRED: 'bg-red-100 text-red-700', CANCELLED: 'bg-gray-100 text-gray-600' };
 
   return (
     <DashboardShell brand="HamroMenu" sections={ADMIN_SECTIONS}>

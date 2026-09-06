@@ -69,7 +69,7 @@ export default function SuperAdminDashboardPage() {
               { label: 'Total Restaurants', value: overview.totalRestaurants || 0, icon: Building, color: 'bg-clay-100 text-clay-700' },
               { label: 'Active Restaurants', value: overview.activeRestaurants || 0, icon: CheckCircle, color: 'bg-green-100 text-green-700' },
               { label: 'Pending Applications', value: overview.pendingApplications || 0, icon: Clock, color: 'bg-yellow-100 text-yellow-700' },
-              { label: 'Total Orders', value: overview.totalOrders || 0, icon: TrendingUp, color: 'bg-blue-100 text-blue-700' },
+              { label: 'Total Orders', value: overview.totalOrders || 0, icon: TrendingUp, color: 'bg-saffron/15 text-saffron-deep' },
             ].map((card, i) => (
               <motion.div key={card.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="rounded-2xl border border-cream-200 bg-white p-5 shadow-card">
                 <div className="flex items-center gap-3">
