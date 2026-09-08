@@ -16,7 +16,7 @@ const SA_SECTIONS = [
   ]},
 ];
 
-const STATUS_COLORS = { ACTIVE: 'bg-green-100 text-green-700', TRIALING: 'bg-saffron/15 text-saffron-deep', PAST_DUE: 'bg-red-100 text-red-700', EXPIRED: 'bg-gray-100 text-gray-600', CANCELLED: 'bg-gray-100 text-gray-600' };
+const STATUS_COLORS = { ACTIVE: 'bg-leaf/15 text-leaf-dark', TRIALING: 'bg-saffron/15 text-saffron-deep', PAST_DUE: 'bg-red-100 text-red-700', EXPIRED: 'bg-gray-100 text-gray-600', CANCELLED: 'bg-gray-100 text-gray-600' };
 
 export default function SuperAdminSubscriptionsPage() {
   const toast = useToast();

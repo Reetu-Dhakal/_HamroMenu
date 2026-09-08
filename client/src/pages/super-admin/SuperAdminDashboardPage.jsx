@@ -67,7 +67,7 @@ export default function SuperAdminDashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { label: 'Total Restaurants', value: overview.totalRestaurants || 0, icon: Building, color: 'bg-clay-100 text-clay-700' },
-              { label: 'Active Restaurants', value: overview.activeRestaurants || 0, icon: CheckCircle, color: 'bg-green-100 text-green-700' },
+              { label: 'Active Restaurants', value: overview.activeRestaurants || 0, icon: CheckCircle, color: 'bg-leaf/15 text-leaf-dark' },
               { label: 'Pending Applications', value: overview.pendingApplications || 0, icon: Clock, color: 'bg-yellow-100 text-yellow-700' },
               { label: 'Total Orders', value: overview.totalOrders || 0, icon: TrendingUp, color: 'bg-saffron/15 text-saffron-deep' },
             ].map((card, i) => (
@@ -104,7 +104,7 @@ export default function SuperAdminDashboardPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setSelectedApp(app)} className="btn-soft text-xs px-3 py-1.5">View</button>
-                    <button onClick={() => handleAction('approve', app._id)} disabled={actionLoading === app._id} className="rounded-xl bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700">Approve</button>
+                    <button onClick={() => handleAction('approve', app._id)} disabled={actionLoading === app._id} className="rounded-xl bg-clay-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-clay-800">Approve</button>
                     <button onClick={() => handleAction('reject', app._id, 'Rejected by admin')} disabled={actionLoading === app._id} className="rounded-xl bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-200">Reject</button>
                   </div>
                 </div>
@@ -128,7 +128,7 @@ export default function SuperAdminDashboardPage() {
                 {selectedApp.verificationNote && <div><label className="text-[10px] font-bold uppercase text-ink-faint">Notes</label><p className="text-sm text-ink">{selectedApp.verificationNote}</p></div>}
               </div>
               <div className="mt-6 flex gap-3">
-                <button onClick={() => handleAction('approve', selectedApp._id)} disabled={actionLoading === selectedApp._id} className="flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white hover:bg-green-700">Approve</button>
+                <button onClick={() => handleAction('approve', selectedApp._id)} disabled={actionLoading === selectedApp._id} className="flex-1 rounded-xl bg-clay-700 py-2.5 text-sm font-semibold text-white hover:bg-clay-800">Approve</button>
                 <button onClick={() => { const r = prompt('Rejection reason:'); if (r) handleAction('reject', selectedApp._id, r); }} disabled={actionLoading === selectedApp._id} className="flex-1 rounded-xl bg-red-100 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-200">Reject</button>
                 <button onClick={() => { const r = prompt('What information is needed?'); if (r) handleAction('request-correction', selectedApp._id, r); }} disabled={actionLoading === selectedApp._id} className="flex-1 rounded-xl bg-clay-100 py-2.5 text-sm font-semibold text-clay-700 hover:bg-clay-200">Request Info</button>
               </div>

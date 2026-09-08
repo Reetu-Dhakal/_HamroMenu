@@ -149,7 +149,7 @@ export default function AdminSettingsPage() {
                 <h3 className="font-display text-base font-bold text-ink">Restaurant Status</h3>
                 <p className="mt-1 text-sm text-ink-faint">{form.isOpen ? 'Currently open and accepting orders' : 'Currently closed'}</p>
               </div>
-              <button type="button" onClick={() => setForm(f => ({ ...f, isOpen: !f.isOpen }))} className={`relative h-7 w-12 rounded-full transition-colors ${form.isOpen ? 'bg-green-500' : 'bg-gray-300'}`}>
+              <button type="button" onClick={() => setForm(f => ({ ...f, isOpen: !f.isOpen }))} className={`relative h-7 w-12 rounded-full transition-colors ${form.isOpen ? 'bg-clay-600' : 'bg-gray-300'}`}>
                 <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${form.isOpen ? 'left-[22px]' : 'left-0.5'}`} />
               </button>
             </div>

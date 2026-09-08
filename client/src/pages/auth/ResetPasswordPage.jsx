@@ -55,8 +55,8 @@ export default function ResetPasswordPage() {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-cream-50 p-4">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100">
-            <CheckCircle size={32} className="text-green-600" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-saffron/15">
+            <CheckCircle size={32} className="text-saffron-deep" />
           </div>
           <h1 className="mt-6 font-display text-2xl font-bold text-ink">Password reset!</h1>
           <p className="mt-2 text-sm text-ink-faint">Redirecting you to login…</p>

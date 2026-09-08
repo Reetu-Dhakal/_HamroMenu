@@ -35,10 +35,10 @@ import {
 
 const btn = {
   primary:
-    'inline-flex items-center justify-center gap-2 rounded-full bg-clay-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-clay-600/25 transition-all hover:bg-clay-700 hover:shadow-xl hover:shadow-clay-600/30 active:scale-[0.98]',
+    'inline-flex items-center justify-center gap-2 rounded-full bg-clay-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-clay-700/25 transition-all hover:bg-clay-800 hover:shadow-xl hover:shadow-clay-700/30 active:scale-[0.98]',
 
   soft:
-    'inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-clay-700 ring-1 ring-clay-200 transition-all hover:bg-clay-50 active:scale-[0.98]',
+    'inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-clay-700 ring-1 ring-clay-200 transition-all hover:bg-clay-900 hover:text-cream-50 active:scale-[0.98]',
 
   ghost:
     'inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-clay-700 transition-colors hover:bg-clay-50',
@@ -83,7 +83,7 @@ function FeatureCard({ icon: Icon, title, copy }) {
       {...fadeUp}
       className="group rounded-3xl bg-white p-6 shadow-sm ring-1 ring-cream-100 transition-all hover:-translate-y-1 hover:shadow-card"
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-clay-100 text-clay-600">
+      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-saffron/15 text-saffron-deep">
         <Icon size={20} />
       </span>
 
@@ -100,13 +100,13 @@ function StepCard({ icon: Icon, step, title, copy }) {
   return (
     <motion.div
       {...fadeUp}
-      className="group relative overflow-hidden rounded-3xl bg-cream-50 p-7 ring-1 ring-clay-100 transition-all hover:-translate-y-1 hover:shadow-card"
+      className="group relative overflow-hidden rounded-3xl bg-cream-50 p-7 ring-1 ring-saffron/30 transition-all hover:-translate-y-1 hover:shadow-card"
     >
-      <span className="absolute right-6 top-5 font-display text-5xl font-black text-clay-100 transition-colors group-hover:text-clay-200">
+      <span className="absolute right-6 top-5 font-display text-5xl font-black text-clay-100 transition-colors group-hover:text-saffron/30">
         {step}
       </span>
 
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-clay-500 to-clay-700 text-white shadow-md shadow-clay-600/30">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-clay-700 to-clay-900 text-saffron shadow-md shadow-clay-900/40">
         <Icon size={22} />
       </span>
 
@@ -177,7 +177,7 @@ export default function LandingPage() {
           className="absolute inset-0 h-full w-full object-cover"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-r from-clay-900/95 via-clay-900/75 to-clay-900/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#2A0F07]/95 via-[#4A1A10]/80 to-[#6B2B15]/45" />
 
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-16 -top-16 h-72 w-72 rounded-full bg-saffron/20 blur-3xl" />
@@ -232,9 +232,10 @@ export default function LandingPage() {
       </section>
 
       {/* ================= HOW IT WORKS ================= */}
-      <section id="how-it-works" className="relative bg-cream-100 py-20">
+      <section id="how-it-works" className="relative bg-clay-900 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHead
+            light
             title="Your table, your phone, your order"
           />
 
@@ -264,7 +265,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= ABOUT ================= */}
-      <section id="about" className="bg-white py-20">
+      <section id="about" className="bg-paper py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid items-center gap-12 lg:grid-cols-[1fr_1fr]">
             <motion.div {...fadeUp}>
@@ -311,7 +312,7 @@ export default function LandingPage() {
                     </h3>
                   </div>
 
-                  <span className="rounded-full bg-leaf/15 px-3 py-1 text-xs font-bold text-leaf">
+                  <span className="rounded-full bg-saffron/20 px-3 py-1 text-xs font-bold text-saffron">
                     Verified
                   </span>
                 </div>
@@ -378,9 +379,9 @@ export default function LandingPage() {
       {/* ================= PRODUCT SHOWCASE ================= */}
       <section
         id="product-showcase"
-        className="relative overflow-hidden bg-black py-20"
+        className="relative overflow-hidden bg-[#350F07] py-20"
       >
-        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-saffron/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-saffron/15 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHead
@@ -430,7 +431,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= FEATURES ================= */}
-      <section id="features" className="relative bg-cream-50 py-20">
+      <section id="features" className="relative bg-cream-100 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHead
             title="Everything in one place"
@@ -490,7 +491,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= CUSTOMER EXPERIENCE ================= */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-clay-800 via-clay-900 to-[#032A1F] py-20 text-cream-50">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#3A1208] via-[#4D1A0D] to-[#2B0E06] py-20 text-cream-50">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-saffron/20 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
@@ -620,7 +621,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= RECOMMENDATION ENGINE ================= */}
-      <section className="bg-white py-20">
+      <section className="bg-[#FFFDF9] py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <motion.div
@@ -902,13 +903,13 @@ export default function LandingPage() {
                         plan.popular ? 'text-white/75' : 'text-gray-600'
                       }`}
                     >
-                      <span
-                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                          plan.popular
-                            ? 'bg-saffron text-clay-900'
-                            : 'bg-leaf/15 text-leaf'
-                        }`}
-                      >
+<span
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                            plan.popular
+                              ? 'bg-saffron text-clay-900'
+                              : 'bg-saffron/15 text-saffron-deep'
+                          }`}
+                        >
                         <Check size={12} />
                       </span>
 
@@ -933,7 +934,7 @@ export default function LandingPage() {
       </section>
 
       {/* ================= CTA ================= */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-clay-700 via-clay-800 to-clay-900 py-16 text-cream-50">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#5A2213] via-[#3F130A] to-[#250A04] py-16 text-cream-50">
         <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-saffron/20 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -1146,7 +1147,7 @@ export default function LandingPage() {
 }
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1800&q=80';
+  'https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?auto=format&fit=crop&w=1800&q=80';
 
 function Logo() {
   return (

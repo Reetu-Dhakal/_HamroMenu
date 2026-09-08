@@ -91,9 +91,9 @@ export default function SuperAdminPlansPage() {
                   <p className="mt-3 font-display text-3xl font-bold text-clay-600">{npr(plan.price)}<span className="text-sm font-normal text-ink-faint">/mo</span></p>
                   <p className="mt-2 text-xs text-ink-faint">{plan.description}</p>
                   <ul className="mt-4 space-y-1.5">
-                    <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={12} className="text-green-500" /> {plan.maxTables === -1 ? '∞' : plan.maxTables} tables</li>
-                    <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={12} className="text-green-500" /> {plan.maxMenuItems === -1 ? '∞' : plan.maxMenuItems} menu items</li>
-                    <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={12} className="text-green-500" /> {plan.maxStaffAccounts === -1 ? '∞' : plan.maxStaffAccounts} staff</li>
+                    <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={12} className="text-saffron-deep" /> {plan.maxTables === -1 ? '∞' : plan.maxTables} tables</li>
+                    <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={12} className="text-saffron-deep" /> {plan.maxMenuItems === -1 ? '∞' : plan.maxMenuItems} menu items</li>
+                    <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={12} className="text-saffron-deep" /> {plan.maxStaffAccounts === -1 ? '∞' : plan.maxStaffAccounts} staff</li>
                   </ul>
                 </>
               )}

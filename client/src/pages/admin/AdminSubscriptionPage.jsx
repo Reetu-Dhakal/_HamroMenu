@@ -76,7 +76,7 @@ export default function AdminSubscriptionPage() {
   if (loading) return <DashboardShell brand="HamroMenu" sections={ADMIN_SECTIONS}><div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-clay-600 border-t-transparent" /></div></DashboardShell>;
 
   const currentPlan = subscription?.plan;
-  const statusColor = { ACTIVE: 'bg-green-100 text-green-700', TRIALING: 'bg-saffron/15 text-saffron-deep', PAST_DUE: 'bg-red-100 text-red-700', EXPIRED: 'bg-red-100 text-red-700', CANCELLED: 'bg-gray-100 text-gray-600' };
+  const statusColor = { ACTIVE: 'bg-leaf/15 text-leaf-dark', TRIALING: 'bg-saffron/15 text-saffron-deep', PAST_DUE: 'bg-red-100 text-red-700', EXPIRED: 'bg-red-100 text-red-700', CANCELLED: 'bg-gray-100 text-gray-600' };
 
   return (
     <DashboardShell brand="HamroMenu" sections={ADMIN_SECTIONS}>
@@ -142,12 +142,12 @@ export default function AdminSubscriptionPage() {
                 <p className="mt-2 font-display text-3xl font-bold text-clay-600">{npr(plan.price)}<span className="text-sm font-normal text-ink-faint">/mo</span></p>
                 <p className="mt-2 text-xs text-ink-faint">{plan.description}</p>
                 <ul className="mt-4 space-y-2">
-                  <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-green-500" /> Up to {plan.maxTables === -1 ? '∞' : plan.maxTables} tables</li>
-                  <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-green-500" /> Up to {plan.maxMenuItems === -1 ? '∞' : plan.maxMenuItems} menu items</li>
-                  <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-green-500" /> {plan.maxStaffAccounts === -1 ? '∞' : plan.maxStaffAccounts} staff accounts</li>
-                  {plan.featureFlags?.get?.('hasRecommendations') && <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-green-500" /> KNN recommendations</li>}
-                  {plan.featureFlags?.get?.('hasApriori') && <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-green-500" /> Frequently ordered together</li>}
-                  {plan.featureFlags?.get?.('hasAdvancedReports') && <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-green-500" /> Advanced reports</li>}
+                  <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-saffron-deep" /> Up to {plan.maxTables === -1 ? '∞' : plan.maxTables} tables</li>
+                  <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-saffron-deep" /> Up to {plan.maxMenuItems === -1 ? '∞' : plan.maxMenuItems} menu items</li>
+                  <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-saffron-deep" /> {plan.maxStaffAccounts === -1 ? '∞' : plan.maxStaffAccounts} staff accounts</li>
+                  {plan.featureFlags?.get?.('hasRecommendations') && <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-saffron-deep" /> KNN recommendations</li>}
+                  {plan.featureFlags?.get?.('hasApriori') && <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-saffron-deep" /> Frequently ordered together</li>}
+                  {plan.featureFlags?.get?.('hasAdvancedReports') && <li className="flex items-center gap-2 text-xs text-ink-soft"><Check size={14} className="text-saffron-deep" /> Advanced reports</li>}
                 </ul>
                 <button
                   onClick={() => handleChangePlan(plan._id)}

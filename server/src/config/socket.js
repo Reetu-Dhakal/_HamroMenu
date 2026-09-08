@@ -15,7 +15,7 @@ export function initSocket(httpServer) {
       origin: config.clientUrl,
       credentials: true,
     },
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
