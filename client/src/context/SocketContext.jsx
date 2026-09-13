@@ -26,16 +26,25 @@ export function SocketProvider({ children }) {
   useEffect(() => {
     let s = null;
     if (identity && (identity.restaurantId || identity.customerId)) {
-      s = io(SOCKET_URL, { transports: ['websocket', 'polling'], reconnection: true });
+      // Authenticated socket: server validates the JWT and only allows
+      // rooms owned by this user (own restaurant / own customer id).
+      const token = localStorage.getItem('hm_access_token');
+      s = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        auth: { token },
+      });
       setSocket(s);
       s.on('connect', () => {
         setConnected(true);
         s.emit('join', identity);
       });
+      s.on('connect_error', () => setConnected(false));
       s.on('disconnect', () => setConnected(false));
     }
     return () => {
       s?.off('connect');
+      s?.off('connect_error');
       s?.off('disconnect');
       s?.disconnect();
     };

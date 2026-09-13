@@ -75,6 +75,7 @@ class AuthService {
     if (exists) throw new ApiError(409, 'This email is already registered', null, ErrorCodes.CONFLICT);
 
     let restaurantDoc = null;
+    let createdNewRestaurant = false;
     const isObjectId = (v) => v && mongoose.Types.ObjectId.isValid(String(v));
 
     // Legacy path: caller passed an existing restaurant id -> link owner to it
@@ -136,56 +137,81 @@ class AuthService {
         },
         verificationNote: duplicateReg ? 'Possible duplicate business registration number - needs manual review.' : '',
       });
+      createdNewRestaurant = true;
     }
 
-    // 1. Create owner user (ADMIN role = restaurant owner) linked to restaurant
-    const user = await this.users.createByRole(USER_ROLES.ADMIN, {
-      name,
-      email,
-      phone,
-      password,
-      restaurant: restaurantDoc._id,
-    });
+    // Rollback guard: no MongoDB transactions in this project (standalone
+    // deployments don't support them), so unwind created docs best-effort
+    // to avoid partial registration (orphan restaurant/owner/subscription).
+    let user = null;
+    let subscription = null;
+    let invoice = null;
+    try {
+      // 1. Create owner user (ADMIN role = restaurant owner) linked to restaurant
+      user = await this.users.createByRole(USER_ROLES.ADMIN, {
+        name,
+        email,
+        phone,
+        password,
+        restaurant: restaurantDoc._id,
+      });
 
-    // Link restaurant -> owner (owner ref lives on Restaurant)
-    restaurantDoc.owner = user._id;
-    await restaurantDoc.save();
+      // Link restaurant -> owner (owner ref lives on Restaurant)
+      restaurantDoc.owner = user._id;
+      await restaurantDoc.save();
 
-    // 2. Create subscription (requested plan if valid, else Free/Trial)
-    let plan = null;
-    if (planName) {
-      plan = await this.models.SubscriptionPlan.findOne({ name: planName, isActive: true });
+      // 2. Create subscription (requested plan if valid, else Free/Trial)
+      let plan = null;
+      if (planName) {
+        plan = await this.models.SubscriptionPlan.findOne({ name: planName, isActive: true });
+      }
+      if (!plan) {
+        plan = await this.models.SubscriptionPlan.findOne({ name: 'Free / Trial' });
+      }
+      if (!plan) throw new Error('Free/Trial plan not found - cannot create subscription');
+
+      const trialDays = plan.trialDays || 14;
+      subscription = new this.models.Subscription({
+        restaurant: restaurantDoc._id,
+        plan: plan._id,
+        status: plan.price === 0 ? 'TRIALING' : 'ACTIVE',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
+        autoRenew: true,
+      });
+      await subscription.save();
+
+      // 3. Create initial PENDING invoice for the trial/subscription
+      invoice = new this.models.Invoice({
+        restaurant: restaurantDoc._id,
+        subscription: subscription._id,
+        amount: plan.price || 0,
+        billingPeriodStart: new Date(),
+        billingPeriodEnd: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
+        status: 'PENDING',
+        paymentMethod: 'pay_after_meal',
+      });
+      await invoice.save();
+
+      const payload = await this.buildAuthPayload(user);
+      return { ...payload, restaurant: restaurantDoc, subscription };
+    } catch (err) {
+      // Best-effort unwind in reverse creation order. Never delete a
+      // pre-existing (legacy-linked) restaurant.
+      if (invoice?._id) await this.models.Invoice.deleteOne({ _id: invoice._id }).catch(() => {});
+      if (subscription?._id) await this.models.Subscription.deleteOne({ _id: subscription._id }).catch(() => {});
+      if (user?._id) {
+        const M = this.users.modelFor(user.role);
+        if (M) await M.deleteOne({ _id: user._id }).catch(() => {});
+      }
+      if (createdNewRestaurant && restaurantDoc?._id) {
+        await Restaurant.deleteOne({ _id: restaurantDoc._id }).catch(() => {});
+      } else if (restaurantDoc && user?._id && String(restaurantDoc.owner) === String(user._id)) {
+        restaurantDoc.owner = undefined;
+        await restaurantDoc.save().catch(() => {});
+      }
+      throw err;
     }
-    if (!plan) {
-      plan = await this.models.SubscriptionPlan.findOne({ name: 'Free / Trial' });
-    }
-    if (!plan) throw new Error('Free/Trial plan not found - cannot create subscription');
-
-    const trialDays = plan.trialDays || 14;
-    const subscription = new this.models.Subscription({
-      restaurant: restaurantDoc._id,
-      plan: plan._id,
-      status: plan.price === 0 ? 'TRIALING' : 'ACTIVE',
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
-      autoRenew: true,
-    });
-    await subscription.save();
-
-    // 3. Create initial PENDING invoice for the trial/subscription
-    const invoice = new this.models.Invoice({
-      restaurant: restaurantDoc._id,
-      subscription: subscription._id,
-      amount: plan.price || 0,
-      billingPeriodStart: new Date(),
-      billingPeriodEnd: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
-      status: 'PENDING',
-      paymentMethod: 'pay_after_meal',
-    });
-    await invoice.save();
-
-    const payload = await this.buildAuthPayload(user);
-    return { ...payload, restaurant: restaurantDoc, subscription };
   }
 
   /** Delegated manager account (uses Admin model, MANAGER role). */

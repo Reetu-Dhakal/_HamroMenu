@@ -10,6 +10,7 @@ import ApiError from '../utils/ApiError.js';
  *   statusWeight: pending=100, confirmed=80, preparing=50, ready=10
  *   itemLoadWeight: +2 per item (larger tickets slightly more urgent)
  * Wait time dominates over time so long-waiting orders naturally rise.
+ * Tie-break (deterministic): higher score → earlier placedAt → smaller _id.
  */
 class KitchenPriorityQueue {
   constructor() {
@@ -29,8 +30,27 @@ class KitchenPriorityQueue {
     return 'low';
   }
 
+  toNode(order) {
+    return {
+      order,
+      priority: this.score(order),
+      placedAtMs: new Date(order.placedAt).getTime() || 0,
+      idStr: String(order._id || ''),
+    };
+  }
+
+  /**
+   * Deterministic ordering: higher score first, then earlier placedAt,
+   * then order ID string comparison as final tie-break.
+   */
+  higherPriority(a, b) {
+    if (a.priority !== b.priority) return a.priority > b.priority;
+    if (a.placedAtMs !== b.placedAtMs) return a.placedAtMs < b.placedAtMs;
+    return a.idStr < b.idStr;
+  }
+
   enqueue(order) {
-    this.heap.push({ order, priority: this.score(order) });
+    this.heap.push(this.toNode(order));
     this.heapifyUp(this.heap.length - 1);
   }
 
@@ -53,15 +73,17 @@ class KitchenPriorityQueue {
   rebalance() {
     this.heap.forEach((h) => {
       h.priority = this.score(h.order);
+      h.placedAtMs = new Date(h.order.placedAt).getTime() || 0;
+      h.idStr = String(h.order._id || '');
     });
     this.heapify();
   }
 
-  /** Max-heap: parent must be >= children. */
+  /** Max-heap with deterministic tie-break (score → placedAt → _id). */
   heapifyUp(index) {
     while (index > 0) {
       const parentIndex = Math.floor((index - 1) / 2);
-      if (this.heap[parentIndex].priority >= this.heap[index].priority) break;
+      if (this.higherPriority(this.heap[parentIndex], this.heap[index])) break;
       [this.heap[parentIndex], this.heap[index]] = [this.heap[index], this.heap[parentIndex]];
       index = parentIndex;
     }
@@ -74,10 +96,10 @@ class KitchenPriorityQueue {
       const leftChild = 2 * index + 1;
       const rightChild = 2 * index + 2;
 
-      if (leftChild <= lastIndex && this.heap[leftChild].priority > this.heap[largest].priority) {
+      if (leftChild <= lastIndex && this.higherPriority(this.heap[leftChild], this.heap[largest])) {
         largest = leftChild;
       }
-      if (rightChild <= lastIndex && this.heap[rightChild].priority > this.heap[largest].priority) {
+      if (rightChild <= lastIndex && this.higherPriority(this.heap[rightChild], this.heap[largest])) {
         largest = rightChild;
       }
       if (largest === index) break;
@@ -102,7 +124,8 @@ class KitchenPriorityQueue {
 
 class KitchenService {
   constructor() {
-    this.queue = new KitchenPriorityQueue();
+    // NOTE: named `pq` (not `queue`) so it never shadows the queue() method.
+    this.pq = new KitchenPriorityQueue();
     this.Order = Order;
   }
 
@@ -124,13 +147,13 @@ class KitchenService {
     for (const o of orders) pq.enqueue(o.toObject());
     const sorted = pq.drainSorted();
     return sorted.map((plain, idx) => {
-      const score = this.queue.score(plain) || 0;
+      const score = pq.score(plain) || 0;
       return {
         ...plain,
         waitMinutes: this.waitMinutes(plain),
         priority: Math.round(score * 100) / 100,
         priorityRank: idx + 1,
-        priorityLabel: this.queue.priorityLabel(score),
+        priorityLabel: pq.priorityLabel(score),
       };
     });
   }
@@ -142,11 +165,11 @@ class KitchenService {
   }
 
   enqueueOrder(order) {
-    this.queue.enqueue(order);
+    this.pq.enqueue(order);
   }
 
   dequeueOrder() {
-    return this.queue.dequeue();
+    return this.pq.dequeue();
   }
 
   async accept(orderId, kitchenUser) {
