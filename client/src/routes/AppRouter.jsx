@@ -5,6 +5,8 @@ import ProtectedRoute from './ProtectedRoute';
 import { PageLoader } from '../components/ui';
 
 const LandingPage = lazy(() => import('../pages/LandingPage'));
+const RestaurantsPage = lazy(() => import('../pages/customer/RestaurantsPage'));
+const RestaurantDetailPage = lazy(() => import('../pages/customer/RestaurantDetailPage'));
 const MenuPage = lazy(() => import('../pages/customer/MenuPage'));
 const CartPage = lazy(() => import('../pages/customer/CartPage'));
 const CheckoutPage = lazy(() => import('../pages/customer/CheckoutPage'));
@@ -50,6 +52,8 @@ export default function AppRouter() {
       <Routes>
         <Route path="/" element={<Lazy><LandingPage /></Lazy>} />
 
+        <Route path="/restaurants" element={<Lazy><RestaurantsPage /></Lazy>} />
+        <Route path="/restaurants/:restaurantId" element={<Lazy><RestaurantDetailPage /></Lazy>} />
         <Route path="/menu/table/:tableNumber" element={<Lazy><MenuPage /></Lazy>} />
         <Route path="/menu" element={<Lazy><MenuPage /></Lazy>} />
         <Route path="/cart" element={<Lazy><CartPage /></Lazy>} />
@@ -66,20 +70,20 @@ export default function AppRouter() {
         <Route path="/forgot-password" element={<Lazy><ForgotPasswordPage /></Lazy>} />
         <Route path="/reset-password" element={<Lazy><ResetPasswordPage /></Lazy>} />
 
-        <Route path="/staff" element={<ProtectedRoute roles={['staff', 'admin']}><Lazy><StaffDashboardPage /></Lazy></ProtectedRoute>} />
-        <Route path="/kitchen" element={<ProtectedRoute roles={['kitchen', 'admin']}><Lazy><KitchenDashboardPage /></Lazy></ProtectedRoute>} />
+        <Route path="/staff" element={<ProtectedRoute roles={['staff', 'admin', 'manager']}><Lazy><StaffDashboardPage /></Lazy></ProtectedRoute>} />
+        <Route path="/kitchen" element={<ProtectedRoute roles={['kitchen', 'admin', 'manager']}><Lazy><KitchenDashboardPage /></Lazy></ProtectedRoute>} />
 
-        <Route path="/admin" element={<ProtectedRoute roles={['admin']}><Lazy><AdminDashboardPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/menu" element={<ProtectedRoute roles={['admin']}><Lazy><AdminMenuPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/categories" element={<ProtectedRoute roles={['admin']}><Lazy><AdminCategoriesPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/tables" element={<ProtectedRoute roles={['admin']}><Lazy><AdminTablesPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/orders" element={<ProtectedRoute roles={['admin']}><Lazy><AdminOrdersPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/analytics" element={<ProtectedRoute roles={['admin']}><Lazy><AdminAnalyticsPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/staff" element={<ProtectedRoute roles={['admin']}><Lazy><AdminStaffPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/reviews" element={<ProtectedRoute roles={['admin']}><Lazy><AdminReviewsPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminDashboardPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/menu" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminMenuPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/categories" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminCategoriesPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/tables" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminTablesPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/orders" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminOrdersPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/analytics" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminAnalyticsPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/staff" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminStaffPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/reviews" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminReviewsPage /></Lazy></ProtectedRoute>} />
         <Route path="/admin/subscription" element={<ProtectedRoute roles={['admin']}><Lazy><AdminSubscriptionPage /></Lazy></ProtectedRoute>} />
         <Route path="/admin/verification" element={<ProtectedRoute roles={['admin']}><Lazy><AdminVerificationPage /></Lazy></ProtectedRoute>} />
-        <Route path="/admin/settings" element={<ProtectedRoute roles={['admin']}><Lazy><AdminSettingsPage /></Lazy></ProtectedRoute>} />
+        <Route path="/admin/settings" element={<ProtectedRoute roles={['admin', 'manager']}><Lazy><AdminSettingsPage /></Lazy></ProtectedRoute>} />
 
         <Route path="/super-admin" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminDashboardPage /></Lazy></ProtectedRoute>} />
         <Route path="/super-admin/users" element={<ProtectedRoute roles={['super_admin']}><Lazy><SuperAdminUsersPage /></Lazy></ProtectedRoute>} />

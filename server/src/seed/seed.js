@@ -79,6 +79,8 @@ async function seed() {
   const restaurant = await Restaurant.create({
     name: 'Himalayan Flavors',
     slug: 'himalayan-flavors',
+    verificationStatus: 'VERIFIED',
+    restaurantStatus: 'ACTIVE',
     tagline: 'Taste the mountains, one plate at a time',
     description:
       'A contemporary Nepali kitchen serving hand-made momos, soul-warming thukpa and mountain classics with a modern twist.',
@@ -198,13 +200,18 @@ async function seed() {
   const pwd = 'password123';
   const [adminPw, staffPw, kitchenPw, customerPw] = await Promise.all([hash(pwd), hash(pwd), hash(pwd), hash(pwd)]);
 
-  await Admin.create({
+  const owner = await Admin.create({
     name: 'Ramesh Shrestha',
     email: 'admin@himalayanflavors.com',
     phone: '+977-9800000001',
     password: adminPw,
     role: 'admin',
+    restaurant: restaurant._id,
   });
+  restaurant.owner = owner._id;
+  restaurant.verifiedAt = new Date();
+  restaurant.approvedAt = new Date();
+  await restaurant.save();
 
   const staff = await Staff.create({
     name: 'Prakash Tamang',

@@ -1,5 +1,7 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import userRepository from '../repositories/UserRepository.js';
+import Restaurant from '../models/Restaurant.js';
 import Subscription from '../models/Subscription.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import Invoice from '../models/Invoice.js';
@@ -57,45 +59,143 @@ class AuthService {
     return this.buildAuthPayload(user);
   }
 
-  async registerRestaurantOwner({ name, email, phone, password, restaurant }) {
+  /**
+   * Restaurant owner self-registration.
+   * Creates: Admin user + Restaurant document + Subscription + Invoice,
+   * links owner <-> restaurant, initialises verification as PENDING.
+   * Backward compatible: if `restaurant` is an existing ObjectId string,
+   * the owner is linked to that restaurant instead of creating a new one.
+   */
+  async registerRestaurantOwner({
+    name, email, phone, password,
+    restaurant, restaurantName, restaurantDetails, planName,
+    businessRegistrationNumber, panNumber, address, contact, description, cuisine,
+  }) {
     const exists = await this.users.findByEmail(email);
     if (exists) throw new ApiError(409, 'This email is already registered', null, ErrorCodes.CONFLICT);
 
-    // 1. Create user as ADMIN role with restaurant association
+    let restaurantDoc = null;
+    const isObjectId = (v) => v && mongoose.Types.ObjectId.isValid(String(v));
+
+    // Legacy path: caller passed an existing restaurant id -> link owner to it
+    if (typeof restaurant === 'string' && isObjectId(restaurant)) {
+      restaurantDoc = await Restaurant.findById(restaurant);
+      if (!restaurantDoc) throw new ApiError(404, 'Restaurant not found');
+    } else {
+      // New self-registration path: build restaurant data from all accepted shapes
+      const details = (restaurant && typeof restaurant === 'object') ? restaurant : (restaurantDetails || {});
+      const rName = restaurantName || details.name || (typeof restaurant === 'string' && restaurant.trim() ? restaurant : null) || `${name}'s Restaurant`;
+      const rAddress = address || details.address || {};
+      const rContact = contact || details.contact || { phone, email };
+      const rDescription = description ?? details.description ?? '';
+      const rCuisine = cuisine || details.cuisine || [];
+      const regNo = businessRegistrationNumber || details.businessRegistrationNumber || undefined;
+      const pan = panNumber || details.panNumber || undefined;
+
+      const emailOk = /^\S+@\S+\.\S+$/.test(rContact?.email || email || '');
+      const phoneOk = Boolean((rContact?.phone || phone || '').trim());
+      const hasRequired = Boolean(rName && rName.trim().length >= 2);
+
+      // Rule-based verification checks (manual review by Super Admin later;
+      // NOT connected to any external authority)
+      let duplicateReg = false;
+      if (regNo) {
+        const dup = await Restaurant.findOne({ businessRegistrationNumber: regNo }).lean();
+        duplicateReg = Boolean(dup);
+      }
+
+      restaurantDoc = await Restaurant.create({
+        name: rName,
+        description: rDescription,
+        cuisine: Array.isArray(rCuisine) ? rCuisine : [],
+        address: {
+          street: rAddress.street || '',
+          city: rAddress.city || '',
+          state: rAddress.state || '',
+          country: rAddress.country || 'Nepal',
+          zip: rAddress.zip || '',
+        },
+        contact: {
+          phone: rContact.phone || phone || '',
+          email: rContact.email || email || '',
+          website: rContact.website || '',
+        },
+        ...(regNo ? { businessRegistrationNumber: regNo } : {}),
+        ...(pan ? { panNumber: pan } : {}),
+        verificationStatus: 'PENDING',
+        restaurantStatus: 'PENDING',
+        verificationChecks: {
+          requiredInfo: hasRequired,
+          validEmail: emailOk,
+          validPhone: phoneOk,
+          registrationNumber: Boolean(regNo),
+          noDuplicateReg: !duplicateReg,
+          noDuplicateRestaurant: true,
+          documentsUploaded: false,
+          infoConsistency: hasRequired && emailOk,
+        },
+        verificationNote: duplicateReg ? 'Possible duplicate business registration number - needs manual review.' : '',
+      });
+    }
+
+    // 1. Create owner user (ADMIN role = restaurant owner) linked to restaurant
     const user = await this.users.createByRole(USER_ROLES.ADMIN, {
       name,
       email,
       phone,
       password,
-      restaurant,
+      restaurant: restaurantDoc._id,
     });
 
-    // 2. Create Free/Trial subscription for the restaurant
-    const freePlan = await this.models.SubscriptionPlan.findOne({ name: 'Free / Trial' });
-    if (!freePlan) throw new Error('Free/Trial plan not found - cannot create subscription');
+    // Link restaurant -> owner (owner ref lives on Restaurant)
+    restaurantDoc.owner = user._id;
+    await restaurantDoc.save();
 
+    // 2. Create subscription (requested plan if valid, else Free/Trial)
+    let plan = null;
+    if (planName) {
+      plan = await this.models.SubscriptionPlan.findOne({ name: planName, isActive: true });
+    }
+    if (!plan) {
+      plan = await this.models.SubscriptionPlan.findOne({ name: 'Free / Trial' });
+    }
+    if (!plan) throw new Error('Free/Trial plan not found - cannot create subscription');
+
+    const trialDays = plan.trialDays || 14;
     const subscription = new this.models.Subscription({
-      restaurant: restaurant,
-      plan: freePlan._id,
-      status: 'TRIALING',
+      restaurant: restaurantDoc._id,
+      plan: plan._id,
+      status: plan.price === 0 ? 'TRIALING' : 'ACTIVE',
       currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+      currentPeriodEnd: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
       autoRenew: true,
     });
     await subscription.save();
 
-    // 3. Create initial PENDING invoice for the trial
+    // 3. Create initial PENDING invoice for the trial/subscription
     const invoice = new this.models.Invoice({
-      restaurant,
+      restaurant: restaurantDoc._id,
       subscription: subscription._id,
-      amount: 0,
+      amount: plan.price || 0,
       billingPeriodStart: new Date(),
-      billingPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      billingPeriodEnd: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
       status: 'PENDING',
       paymentMethod: 'pay_after_meal',
     });
     await invoice.save();
 
+    const payload = await this.buildAuthPayload(user);
+    return { ...payload, restaurant: restaurantDoc, subscription };
+  }
+
+  /** Delegated manager account (uses Admin model, MANAGER role). */
+  async registerManager({ name, email, phone, password, restaurant }) {
+    const exists = await this.users.findByEmail(email);
+    if (exists) throw new ApiError(409, 'This email is already registered', null, ErrorCodes.CONFLICT);
+    if (!restaurant) throw new ApiError(400, 'Restaurant is required for manager accounts');
+    const user = await this.users.createByRole(USER_ROLES.MANAGER, {
+      name, email, phone, password, restaurant,
+    });
     return this.buildAuthPayload(user);
   }
 

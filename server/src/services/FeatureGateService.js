@@ -1,5 +1,10 @@
 import Subscription from '../models/Subscription.js';
+import MenuItem from '../models/MenuItem.js';
+import Table from '../models/Table.js';
+import Staff from '../models/Staff.js';
+import KitchenStaff from '../models/KitchenStaff.js';
 import { SUBSCRIPTION_PLAN_FEATURES } from '../models/SubscriptionPlan.js';
+import ApiError from '../utils/ApiError.js';
 
 const FeatureGateService = {
 
@@ -24,13 +29,20 @@ const FeatureGateService = {
       return { allowed: false, reason: 'Plan not found on subscription' };
     }
 
-    // 3. Check feature flag on plan
+    // 3. Check feature flag on plan (accept snake_case + camelCase keys)
     const features = SUBSCRIPTION_PLAN_FEATURES[plan.name];
     if (!features) {
       return { allowed: false, reason: 'Plan features not defined' };
     }
 
-    if (features[feature] === true) {
+    const FEATURE_ALIASES = {
+      has_recommendations: 'hasRecommendations',
+      has_apriori: 'hasApriori',
+      has_custom_branding: 'hasCustomBranding',
+      has_advanced_reports: 'hasAdvancedReports',
+    };
+    const canonical = FEATURE_ALIASES[feature] || feature;
+    if (features[canonical] === true || features[feature] === true) {
       return { allowed: true, plan };
     }
 
@@ -70,35 +82,76 @@ const FeatureGateService = {
     };
   },
 
-  /** 
-   * Check if restaurant can add another table (respects plan limits)
+  /**
+   * Backend-enforced resource limits. Counts current usage and compares
+   * against the plan limit. `-1` means unlimited (existing convention).
+   * Returns boolean for backward compat; use *Detail variants for messages.
    */
   async canAddTable(restaurantId) {
-    const subscription = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
-    if (!subscription) return false;
-
-    const plan = subscription.plan;
-    if (!plan) return false;
-
-    const limits = SUBSCRIPTION_PLAN_FEATURES[plan.name];
-    if (!limits) return false;
-
-    if (limits.maxTables === -1) return true;
-    return true;
+    const d = await this.tableUsageDetail(restaurantId);
+    return d.allowed;
   },
 
   async canAddMenuItem(restaurantId) {
+    const d = await this.menuItemUsageDetail(restaurantId);
+    return d.allowed;
+  },
+
+  async canAddStaff(restaurantId) {
+    const d = await this.staffUsageDetail(restaurantId);
+    return d.allowed;
+  },
+
+  async tableUsageDetail(restaurantId) {
     const subscription = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
-    if (!subscription) return false;
-
+    if (!subscription) return { allowed: false, used: 0, max: 0, reason: 'No active subscription found' };
     const plan = subscription.plan;
-    if (!plan) return false;
-
+    if (!plan) return { allowed: false, used: 0, max: 0, reason: 'Plan not found on subscription' };
     const limits = SUBSCRIPTION_PLAN_FEATURES[plan.name];
-    if (!limits) return false;
+    if (!limits) return { allowed: false, used: 0, max: 0, reason: 'Plan features not defined' };
+    if (limits.maxTables === -1) {
+      const used = await Table.countDocuments({ restaurant: restaurantId, isActive: true });
+      return { allowed: true, used, max: -1, plan: plan.name };
+    }
+    const used = await Table.countDocuments({ restaurant: restaurantId, isActive: true });
+    if (used >= limits.maxTables) {
+      return { allowed: false, used, max: limits.maxTables, plan: plan.name, reason: `Maximum ${limits.maxTables} tables reached on ${plan.name} plan. Upgrade for more.` };
+    }
+    return { allowed: true, used, max: limits.maxTables, plan: plan.name };
+  },
 
-    if (limits.maxMenuItems === -1) return true; // unlimited
-    return true; // placeholder - actual count at controller level
+  async menuItemUsageDetail(restaurantId) {
+    const subscription = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
+    if (!subscription) return { allowed: false, used: 0, max: 0, reason: 'No active subscription found' };
+    const plan = subscription.plan;
+    if (!plan) return { allowed: false, used: 0, max: 0, reason: 'Plan not found on subscription' };
+    const limits = SUBSCRIPTION_PLAN_FEATURES[plan.name];
+    if (!limits) return { allowed: false, used: 0, max: 0, reason: 'Plan features not defined' };
+    const used = await MenuItem.countDocuments({ restaurant: restaurantId });
+    if (limits.maxMenuItems === -1) return { allowed: true, used, max: -1, plan: plan.name };
+    if (used >= limits.maxMenuItems) {
+      return { allowed: false, used, max: limits.maxMenuItems, plan: plan.name, reason: `Maximum ${limits.maxMenuItems} menu items reached on ${plan.name} plan. Upgrade for more.` };
+    }
+    return { allowed: true, used, max: limits.maxMenuItems, plan: plan.name };
+  },
+
+  async staffUsageDetail(restaurantId) {
+    const subscription = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
+    if (!subscription) return { allowed: false, used: 0, max: 0, reason: 'No active subscription found' };
+    const plan = subscription.plan;
+    if (!plan) return { allowed: false, used: 0, max: 0, reason: 'Plan not found on subscription' };
+    const limits = SUBSCRIPTION_PLAN_FEATURES[plan.name];
+    if (!limits) return { allowed: false, used: 0, max: 0, reason: 'Plan features not defined' };
+    const [staffCount, kitchenCount] = await Promise.all([
+      Staff.countDocuments({ restaurant: restaurantId }),
+      KitchenStaff.countDocuments({ restaurant: restaurantId }),
+    ]);
+    const used = staffCount + kitchenCount;
+    if (limits.maxStaffAccounts === -1) return { allowed: true, used, max: -1, plan: plan.name };
+    if (used >= limits.maxStaffAccounts) {
+      return { allowed: false, used, max: limits.maxStaffAccounts, plan: plan.name, reason: `Maximum ${limits.maxStaffAccounts} staff accounts reached on ${plan.name} plan. Upgrade for more.` };
+    }
+    return { allowed: true, used, max: limits.maxStaffAccounts, plan: plan.name };
   },
 
   /** 

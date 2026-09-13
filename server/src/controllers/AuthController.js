@@ -21,7 +21,18 @@ class AuthController {
       body('email').isEmail().withMessage('A valid email is required'),
       body('phone').optional().isString(),
       body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-      body('restaurant').optional().isString(),
+      // New self-registration fields (all optional except owner info; restaurant
+      // name falls back to "<owner>'s Restaurant" when omitted)
+      body('restaurant').optional(),
+      body('restaurantName').optional().isString(),
+      body('restaurantDetails').optional().isObject(),
+      body('planName').optional().isString(),
+      body('businessRegistrationNumber').optional().isString(),
+      body('panNumber').optional().isString(),
+      body('address').optional().isObject(),
+      body('contact').optional().isObject(),
+      body('description').optional().isString(),
+      body('cuisine').optional().isArray(),
       validate,
     ];
   }
@@ -35,6 +46,13 @@ class AuthController {
 
   async registerSuperAdmin(req, res, next) {
     asyncHandler(async () => {
+      // Bootstrap guard: first super-admin is open; after that only super_admins can create more.
+      const SuperAdmin = (await import('../models/SuperAdmin.js')).default;
+      const count = await SuperAdmin.countDocuments();
+      if (count > 0 && (!req.user || req.user.role !== 'super_admin')) {
+        const ApiError = (await import('../utils/ApiError.js')).default;
+        throw new ApiError(403, 'Only super admins can create additional super admin accounts');
+      }
       const payload = await authService.registerSuperAdmin(req.body);
       return ApiResponse.send(res, 201, payload, 'Super admin account created');
     })(req, res, next);

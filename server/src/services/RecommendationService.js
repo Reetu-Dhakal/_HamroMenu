@@ -252,10 +252,13 @@ class RecommendationService {
     }
     const similarity = this.computeItemSimilarity(itemVectors);
 
-    // 4. Flatten Apriori rules into coOccurrence for API access
+    // 4. Store Apriori rules BOTH as flat list (for API transparency) and as
+    // an adjacency list `id -> [{id, score}]` (for companion lookup).
+    // Weight = lift * confidence so strong, reliable pairings rank highest.
     const coOccurrence = {};
-    for (const rule of aprioriRules.slice(0, CO_OCCUR_TOP_K)) {
-      const key = rule.antecedent.replace(/ /g, '') + '→' + rule.consequent.replace(/ /g, '');
+    const ruleList = aprioriRules.slice(0, 50);
+    for (const rule of ruleList) {
+      const key = `${rule.antecedent}→${rule.consequent}`;
       coOccurrence[key] = {
         antecedent: rule.antecedent,
         consequent: rule.consequent,
@@ -263,7 +266,20 @@ class RecommendationService {
         confidence: rule.confidence,
         lift: rule.lift,
       };
+      const w = (rule.lift || 1) * (rule.confidence || 0);
+      coOccurrence[rule.antecedent] = coOccurrence[rule.antecedent] || [];
+      if (Array.isArray(coOccurrence[rule.antecedent])) {
+        coOccurrence[rule.antecedent].push({ id: rule.consequent, score: w });
+      }
     }
+    // Keep adjacency lists trimmed to top-K per item
+    for (const k of Object.keys(coOccurrence)) {
+      if (Array.isArray(coOccurrence[k])) {
+        coOccurrence[k].sort((a, b) => b.score - a.score);
+        coOccurrence[k] = coOccurrence[k].slice(0, CO_OCCUR_TOP_K);
+      }
+    }
+    coOccurrence._rules = ruleList.slice(0, CO_OCCUR_TOP_K);
 
     let doc = await this.model.findOne({ restaurant: rid });
     if (!doc) doc = new this.model({ restaurant: rid });
@@ -316,69 +332,152 @@ class RecommendationService {
   }
 
   /**
-   * "Recommended for you".
-   * Logged-in customer with history -> personalized KNN cosine scoring;
-   * otherwise (guest / new customer / not enough signal) -> bestsellers.
+   * TRUE HYBRID "Recommended for you".
+   * FinalScore = wKNN * norm(KNN) + wItem * norm(itemCF) + wApriori * norm(apriori) + wPop * norm(popularity)
+   * Weights (documented, sum = 1): KNN 0.40 (personal taste), item-CF 0.25
+   * (similar dishes), Apriori 0.20 (combos with known items), popularity 0.15
+   * (bestsellers). Missing sources contribute 0 and remaining weights are
+   * re-normalized so new users/restaurants degrade gracefully to bestsellers.
    */
+  static HYBRID_WEIGHTS = { knn: 0.4, item: 0.25, apriori: 0.2, popularity: 0.15 };
+
+  normalizeScores(scores) {
+    const vals = Object.values(scores);
+    if (!vals.length) return {};
+    const max = Math.max(...vals, 1e-9);
+    const out = {};
+    for (const [k, v] of Object.entries(scores)) out[k] = v / max;
+    return out;
+  }
+
   async recommendedFor(restaurantId, customerId = null, { limit = 8 } = {}) {
+    const W = RecommendationService.HYBRID_WEIGHTS;
+    const cache = await this.cacheFor(restaurantId);
+
     if (!customerId) {
       return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
     }
-    const [userVectors, cache] = await Promise.all([this.buildMatrix(restaurantId, customerId), this.cacheFor(restaurantId)]);
+    const userVectors = await this.buildMatrix(restaurantId, customerId);
     const userVector = userVectors[customerId] || {};
-
-    // If user has no order history, fallback to bestsellers
     const known = Object.keys(userVector).filter((k) => (userVector[k] || 0) > 0);
     if (!known.length) {
       return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
     }
+    const knownIds = known.map(String);
 
-    // Try KNN first
-    const knnResult = await this.recommendedByKNN(restaurantId, customerId, limit);
+    // 1) KNN user-based scores
+    const knnRaw = {};
+    try {
+      const neighbours = await this.knnNeighbours(restaurantId, String(customerId), SIMILARITY_TOP_K);
+      for (const { userId, similarity } of neighbours) {
+        const { orders: nOrders } = await this.fetchInteractions(restaurantId, userId);
+        for (const o of nOrders) {
+          for (const it of o.items || []) {
+            const id = it.menuItem.toString();
+            if (knownIds.includes(id)) continue;
+            knnRaw[id] = (knnRaw[id] || 0) + similarity * (it.quantity || 1);
+          }
+        }
+      }
+    } catch (_) { /* treat as empty source */ }
 
-    // If KNN produced results, use them; otherwise fall back to item-based similarity
-    if (knnResult.type === 'personalized' && knnResult.items.length > 0) {
-      return knnResult;
-    }
-
-    // Fallback: item-based collaborative filtering
-    const knownIds = known.map((k) => k.toString ? k.toString() : String(k));
-    const scores = {};
+    // 2) Item-based CF scores from cached item similarity
+    const itemRaw = {};
     for (const itemId of knownIds) {
       const weight = userVector[itemId] || 0;
-      for (const neighbour of cache.similarity[itemId] || []) {
-        if (knownIds.includes(neighbour.id)) continue;
-        scores[neighbour.id] = (scores[neighbour.id] || 0) + neighbour.score * weight;
+      for (const nb of cache.similarity?.[itemId] || []) {
+        if (knownIds.includes(String(nb.id))) continue;
+        itemRaw[nb.id] = (itemRaw[nb.id] || 0) + nb.score * weight;
       }
     }
-    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => id);
-    if (!ranked.length) {
+
+    // 3) Apriori association scores: rules whose antecedent is a known item
+    const aprioriRaw = {};
+    const co = cache.coOccurrence || {};
+    for (const itemId of knownIds) {
+      for (const nb of co[itemId] || []) {
+        if (!nb || !nb.id || knownIds.includes(String(nb.id))) continue;
+        aprioriRaw[nb.id] = (aprioriRaw[nb.id] || 0) + (nb.score || 0);
+      }
+    }
+
+    // 4) Popularity scores (orderCount normalized later)
+    const popularDocs = await MenuItem.find({ restaurant: restaurantId, isAvailable: true })
+      .select('_id orderCount').sort({ orderCount: -1 }).limit(30).lean();
+    const popRaw = {};
+    for (const d of popularDocs) {
+      const id = d._id.toString();
+      if (knownIds.includes(id)) continue;
+      popRaw[id] = d.orderCount || 0;
+    }
+
+    const nKnn = this.normalizeScores(knnRaw);
+    const nItem = this.normalizeScores(itemRaw);
+    const nApr = this.normalizeScores(aprioriRaw);
+    const nPop = this.normalizeScores(popRaw);
+
+    // Re-normalize weights over sources that actually produced candidates
+    const hasKnn = Object.keys(nKnn).length > 0;
+    const hasItem = Object.keys(nItem).length > 0;
+    const hasApr = Object.keys(nApr).length > 0;
+    const hasPop = Object.keys(nPop).length > 0;
+    let wSum = (hasKnn ? W.knn : 0) + (hasItem ? W.item : 0) + (hasApr ? W.apriori : 0) + (hasPop ? W.popularity : 0);
+    if (wSum === 0) {
       return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
     }
 
-    const items = await MenuItem.find({ _id: { $in: ranked }, restaurant: restaurantId, isAvailable: true }).lean();
-    const order = new Map(ranked.map((id, i) => [id, i]));
-    const sorted = items.sort((a, b) => (order.get(a._id.toString()) ?? 99) - (order.get(b._id.toString()) ?? 99));
-    return { type: 'personalized', items: sorted, basedOn: known.length };
+    const final = {};
+    const add = (norm, w) => {
+      for (const [id, v] of Object.entries(norm)) final[id] = (final[id] || 0) + (w / wSum) * v;
+    };
+    if (hasKnn) add(nKnn, W.knn);
+    if (hasItem) add(nItem, W.item);
+    if (hasApr) add(nApr, W.apriori);
+    if (hasPop) add(nPop, W.popularity);
+
+    const ranked = Object.entries(final).sort((a, b) => b[1] - a[1]).slice(0, limit);
+    if (!ranked.length) {
+      return { type: 'bestsellers', items: await this.bestsellers(restaurantId, limit) };
+    }
+    const ids = ranked.map(([id]) => id);
+    const scoreMap = new Map(ranked);
+    const items = await MenuItem.find({ _id: { $in: ids }, restaurant: restaurantId, isAvailable: true }).lean();
+    const sorted = items
+      .map((it) => ({ ...it, _score: Math.round((scoreMap.get(it._id.toString()) || 0) * 100) / 100 }))
+      .sort((a, b) => b._score - a._score);
+    const personalized = hasKnn || hasItem || hasApr;
+    return {
+      type: personalized ? 'hybrid' : 'bestsellers',
+      items: sorted,
+      basedOn: known.length,
+      weights: W,
+      sources: { knn: hasKnn, itemCF: hasItem, apriori: hasApr, popularity: hasPop },
+    };
   }
 
-  /** "Frequently ordered together" — co-occurrence with the cart content. */
+  /** "Frequently ordered together" — Apriori adjacency with cart content. */
   async companionFor(restaurantId, cartItemIds = [], { limit = 6 } = {}) {
     const ids = [...new Set(cartItemIds.map((x) => String(x)).filter(Boolean))];
-    if (!ids.length) return { items: [] };
+    if (!ids.length) return { items: [], rules: [] };
     const cache = await this.cacheFor(restaurantId);
+    const co = cache.coOccurrence || {};
     const scores = {};
+    const matchedRules = [];
     for (const id of ids) {
-      for (const neighbour of cache.coOccurrence[id] || []) {
-        if (ids.includes(neighbour.id)) continue;
-        scores[neighbour.id] = (scores[neighbour.id] || 0) + neighbour.score;
+      for (const neighbour of co[id] || []) {
+        if (!neighbour || !neighbour.id || ids.includes(String(neighbour.id))) continue;
+        scores[neighbour.id] = (scores[neighbour.id] || 0) + (neighbour.score || 0);
       }
     }
+    // Include flat rule list for transparency (antecedent in cart)
+    for (const r of co._rules || []) {
+      if (ids.includes(String(r.antecedent)) && !ids.includes(String(r.consequent))) matchedRules.push(r);
+    }
     const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => id);
-    if (!ranked.length) return { items: [] };
+    if (!ranked.length) return { items: [], rules: matchedRules.slice(0, limit) };
     const found = await MenuItem.find({ _id: { $in: ranked }, restaurant: restaurantId, isAvailable: true }).lean();
     const map = new Map(found.map((i) => [i._id.toString(), i]));
-    return { items: ranked.map((id) => map.get(id)).filter(Boolean) };
+    return { items: ranked.map((id) => map.get(id)).filter(Boolean), rules: matchedRules.slice(0, limit) };
   }
 
   async statsFor(restaurantId) {

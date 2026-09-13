@@ -13,6 +13,7 @@ const MODEL_BY_ROLE = {
   [USER_ROLES.STAFF]: Staff,
   [USER_ROLES.KITCHEN]: KitchenStaff,
   [USER_ROLES.ADMIN]: Admin,
+  [USER_ROLES.MANAGER]: Admin,
   [USER_ROLES.SUPER_ADMIN]: SuperAdmin,
 };
 

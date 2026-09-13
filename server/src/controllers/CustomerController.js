@@ -61,6 +61,20 @@ class CustomerController {
       return ApiResponse.send(res, 200, reviews);
     })(req, res, next);
   }
+
+  async updateMyReview(req, res, next) {
+    asyncHandler(async () => {
+      const review = await customerService.updateMyReview(req.user._id, req.params.id, req.body);
+      return ApiResponse.send(res, 200, review, 'Review updated and sent for moderation');
+    })(req, res, next);
+  }
+
+  async deleteMyReview(req, res, next) {
+    asyncHandler(async () => {
+      await customerService.deleteMyReview(req.user._id, req.params.id);
+      return ApiResponse.send(res, 200, null, 'Review deleted');
+    })(req, res, next);
+  }
 }
 
 export default new CustomerController();

@@ -50,7 +50,19 @@ class AdminController {
 
   async addTable(req, res, next) {
     asyncHandler(async () => {
+      const FeatureGateService = (await import('../services/FeatureGateService.js')).default;
+      const usage = await FeatureGateService.tableUsageDetail(req.params.restaurantId);
+      if (!usage.allowed) {
+        const ApiError = (await import('../utils/ApiError.js')).default;
+        return next(new ApiError(403, usage.reason || 'Table limit reached for your plan'));
+      }
       const table = await restaurantRepo.createTable({ restaurant: req.params.restaurantId, ...req.body });
+      // Auto-generate QR for the new table (best-effort)
+      try {
+        const qrService = (await import('../services/QRService.js')).default;
+        const restaurant = await restaurantRepo.findById(req.params.restaurantId);
+        if (restaurant) await qrService.generateQRCode(restaurant, table, { persist: true });
+      } catch (_) { /* QR can be regenerated later */ }
       return ApiResponse.send(res, 201, table, 'Table added');
     })(req, res, next);
   }

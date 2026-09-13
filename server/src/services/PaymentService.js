@@ -62,6 +62,9 @@ class PaymentService {
   async initPayment({ orderId, method, customerId }) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found', null, ErrorCodes.NOT_FOUND);
+    if (customerId && order.customer.toString() !== String(customerId)) {
+      throw new ApiError(403, 'You can only pay for your own orders');
+    }
     if (order.grandTotal <= 0) throw new ApiError(400, 'Invalid amount');
 
     let payment = await this.repo.findOne({ order: orderId, status: { $in: [PAYMENT_STATUS.PENDING, PAYMENT_STATUS.SUCCESS] } });
@@ -223,6 +226,9 @@ class PaymentService {
   async payAfterMeal({ orderId, customerId }) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found', null, ErrorCodes.NOT_FOUND);
+    if (customerId && order.customer.toString() !== String(customerId)) {
+      throw new ApiError(403, 'You can only pay for your own orders');
+    }
     let payment = await this.repo.findOne({ order: orderId });
     if (!payment) {
       payment = await this.createPayment({

@@ -7,6 +7,7 @@ const AuthContext = createContext(null);
 export const ROLE_HOME = {
   super_admin: '/super-admin',
   admin: '/admin',
+  manager: '/admin',
   staff: '/staff',
   kitchen: '/kitchen',
   customer: '/order-history',

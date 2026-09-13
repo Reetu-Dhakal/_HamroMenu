@@ -58,8 +58,7 @@ export default function MenuPage() {
         if (rid) {
           rest = await request(`/api/restaurants/${rid}`);
         } else {
-          rest = await request('/api/restaurants/by-slug/himalayan-flavors');
-          rid = rest._id;
+          throw new Error('No restaurant selected. Please choose a restaurant from the restaurant list.');
         }
 
         const t = await request(`/api/restaurants/${rid}/tables/number/${tableNumber}`);
@@ -223,15 +222,15 @@ export default function MenuPage() {
           <main className="mx-auto max-w-5xl px-4 sm:px-6">
             {!isSearching ? (
               <RecommendationRail
-                title={recommended?.type === 'personalized' ? 'Recommended for you' : 'Popular with diners'}
+                title={recommended?.type === 'hybrid' || recommended?.type === 'personalized' ? 'Recommended for you' : 'Popular with diners'}
                 subtitle={
-                  recommended?.type === 'personalized'
+                  recommended?.type === 'hybrid' || recommended?.type === 'personalized'
                     ? `Picked from dishes you've loved before`
                     : 'What regulars order the most'
                 }
                 items={(recommended?.items || []).map((it, i) => ({ ...it, isFirst: i === 0 }))}
                 onSelect={setSelectedItem}
-                personalized={recommended?.type === 'personalized'}
+                personalized={recommended?.type === 'hybrid' || recommended?.type === 'personalized'}
               />
             ) : null}
 

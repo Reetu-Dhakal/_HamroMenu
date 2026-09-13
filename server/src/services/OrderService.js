@@ -6,8 +6,8 @@ import menuService from './MenuService.js';
 import restaurantRepository from '../repositories/RestaurantRepository.js';
 import customerService from './CustomerService.js';
 import notificationService from './NotificationService.js';
-import FeatureGateService from './FeatureGateService.js';
 import ApiError, { ErrorCodes } from '../utils/ApiError.js';
+import { assertSameRestaurant } from '../middleware/restaurantAuth.js';
 import mongoose from 'mongoose';
 
 class OrderService {
@@ -21,15 +21,8 @@ class OrderService {
   }
 
   async placeOrder(customerId, { restaurantId, tableId, notes, customerNote, specialRequests, paymentMethod = 'pay_after_meal', source = 'qr' } = {}) {
-    // 1. Check plan limits before allowing order
-    const canOrder = await FeatureGateService.canAddMenuItem(restaurantId);
-    if (!canOrder) {
-      const sub = await Subscription.findOne({ restaurant: restaurantId }).populate('plan');
-      const planName = sub?.plan?.name || 'unknown';
-      throw new ApiError(403, `Cannot place order - maximum menu items reached on ${planName} plan. Upgrade your plan.`);
-    }
-
-    // 2. Check subscription status - restrict orders on EXPIRED/PAST_DUE subscriptions
+    // 1. Check subscription status - restrict orders on EXPIRED/PAST_DUE/CANCELLED subscriptions.
+    // (Menu-item plan limits gate item *creation*, not ordering - fixed here.)
     const subscription = await Subscription.findOne({ restaurant: restaurantId });
     if (subscription) {
       if (subscription.status === 'EXPIRED') {
@@ -37,6 +30,9 @@ class OrderService {
       }
       if (subscription.status === 'PAST_DUE') {
         throw new ApiError(403, 'Subscription is past due. Please update payment to continue taking orders.');
+      }
+      if (subscription.status === 'CANCELLED') {
+        throw new ApiError(403, 'Subscription is cancelled. Please reactivate your subscription to continue taking orders.');
       }
       if (subscription.status === 'TRIALING') {
         // Trial restaurants can take orders, but will be restricted after trial ends
@@ -47,6 +43,11 @@ class OrderService {
     if (cart.isEmpty()) throw new ApiError(400, 'Cart is empty', null, ErrorCodes.CART_EMPTY);
     const restaurant = await restaurantRepository.findById(restaurantId);
     if (!restaurant) throw new ApiError(404, 'Restaurant not found', null, ErrorCodes.NOT_FOUND);
+    // Verification gate: customers can only order from approved/active restaurants.
+    // Owners can still set up menus/tables while PENDING.
+    if (!['ACTIVE', 'APPROVED'].includes(restaurant.restaurantStatus)) {
+      throw new ApiError(403, 'This restaurant is not accepting orders yet (pending verification).');
+    }
 
     const orderItems = cart.items.map((it) => ({
       menuItem: it.menuItem,
@@ -134,6 +135,8 @@ class OrderService {
 
   async changeStatus(orderId, toStatus, actor, note = '') {
     const order = await this.getById(orderId);
+    // Tenant check: restaurant staff may only change their own restaurant's orders
+    if (actor) assertSameRestaurant(actor, order.restaurant, 'Access denied to this order');
 
     if (toStatus === ORDER_STATUS.PREPARING && order.status === ORDER_STATUS.PENDING) {
       order.setStatus(ORDER_STATUS.CONFIRMED, actor?._id, 'Auto-confirmed');
@@ -190,6 +193,12 @@ class OrderService {
 
   async cancelOrder(orderId, actor, reason = '') {
     const order = await this.getById(orderId);
+    if (actor) {
+      if (actor.role === 'customer' && order.customer.toString() !== actor._id.toString()) {
+        throw new ApiError(403, 'You can only cancel your own orders');
+      }
+      assertSameRestaurant(actor, order.restaurant, 'Access denied to this order');
+    }
     if (order.isTerminal()) throw new ApiError(400, 'Order already finished');
     order.setStatus(ORDER_STATUS.CANCELLED, actor?._id, reason || 'Cancelled');
     if (order.table) {

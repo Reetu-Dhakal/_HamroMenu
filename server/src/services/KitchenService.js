@@ -1,16 +1,32 @@
 import Order, { ORDER_STATUS } from '../models/Order.js';
 import notificationService from './NotificationService.js';
+import { assertSameRestaurant } from '../middleware/restaurantAuth.js';
 import ApiError from '../utils/ApiError.js';
 
+/**
+ * KitchenPriorityQueue — max-heap on urgency score.
+ * Higher score = more urgent = dequeues first.
+ * score = waitMinutes * 2 + statusWeight + itemLoadWeight
+ *   statusWeight: pending=100, confirmed=80, preparing=50, ready=10
+ *   itemLoadWeight: +2 per item (larger tickets slightly more urgent)
+ * Wait time dominates over time so long-waiting orders naturally rise.
+ */
 class KitchenPriorityQueue {
   constructor() {
     this.heap = [];
   }
 
   score(order) {
-    const waitMinutes = (Date.now() - new Date(order.placedAt)) / 60000;
+    const waitMinutes = Math.max(0, (Date.now() - new Date(order.placedAt).getTime()) / 60000);
     const statusWeight = { pending: 100, confirmed: 80, preparing: 50, ready: 10 };
-    return Math.max(0, waitMinutes * 2 + (statusWeight[order.status] || 0));
+    const itemCount = Array.isArray(order.items) ? order.items.length : 0;
+    return Math.max(0, waitMinutes * 2 + (statusWeight[order.status] ?? 0) + itemCount * 2);
+  }
+
+  priorityLabel(score) {
+    if (score >= 120) return 'high';
+    if (score >= 70) return 'medium';
+    return 'low';
   }
 
   enqueue(order) {
@@ -20,13 +36,13 @@ class KitchenPriorityQueue {
 
   dequeue() {
     if (this.heap.length === 0) return null;
-    const min = this.heap[0];
+    const max = this.heap[0];
     const last = this.heap.pop();
     if (this.heap.length > 0) {
       this.heap[0] = last;
       this.heapifyDown(0);
     }
-    return min.order;
+    return max.order;
   }
 
   peek() {
@@ -35,16 +51,17 @@ class KitchenPriorityQueue {
   }
 
   rebalance() {
-    this.heap.forEach((h, i) => {
+    this.heap.forEach((h) => {
       h.priority = this.score(h.order);
     });
     this.heapify();
   }
 
+  /** Max-heap: parent must be >= children. */
   heapifyUp(index) {
     while (index > 0) {
       const parentIndex = Math.floor((index - 1) / 2);
-      if (this.heap[parentIndex].priority <= this.heap[index].priority) break;
+      if (this.heap[parentIndex].priority >= this.heap[index].priority) break;
       [this.heap[parentIndex], this.heap[index]] = [this.heap[index], this.heap[parentIndex]];
       index = parentIndex;
     }
@@ -53,19 +70,19 @@ class KitchenPriorityQueue {
   heapifyDown(index) {
     const lastIndex = this.heap.length - 1;
     while (true) {
-      let smallest = index;
+      let largest = index;
       const leftChild = 2 * index + 1;
       const rightChild = 2 * index + 2;
 
-      if (leftChild <= lastIndex && this.heap[leftChild].priority < this.heap[smallest].priority) {
-        smallest = leftChild;
+      if (leftChild <= lastIndex && this.heap[leftChild].priority > this.heap[largest].priority) {
+        largest = leftChild;
       }
-      if (rightChild <= lastIndex && this.heap[rightChild].priority < this.heap[smallest].priority) {
-        smallest = rightChild;
+      if (rightChild <= lastIndex && this.heap[rightChild].priority > this.heap[largest].priority) {
+        largest = rightChild;
       }
-      if (smallest === index) break;
-      [this.heap[smallest], this.heap[index]] = [this.heap[index], this.heap[smallest]];
-      index = smallest;
+      if (largest === index) break;
+      [this.heap[largest], this.heap[index]] = [this.heap[index], this.heap[largest]];
+      index = largest;
     }
   }
 
@@ -73,6 +90,13 @@ class KitchenPriorityQueue {
     for (let i = Math.floor(this.heap.length / 2) - 1; i >= 0; i--) {
       this.heapifyDown(i);
     }
+  }
+
+  /** Drain the heap in priority order (highest urgency first). */
+  drainSorted() {
+    const out = [];
+    while (this.heap.length) out.push(this.dequeue());
+    return out;
   }
 }
 
@@ -82,21 +106,33 @@ class KitchenService {
     this.Order = Order;
   }
 
+  /**
+   * Priority-ordered kitchen queue. The backend (not the frontend) is the
+   * source of truth: orders are pushed through KitchenPriorityQueue and
+   * returned highest-urgency-first with rank + priority label.
+   */
   async queue(restaurantId) {
     const orders = await Order.find({
       restaurant: restaurantId,
       status: { $in: [ORDER_STATUS.PENDING, ORDER_STATUS.CONFIRMED, ORDER_STATUS.PREPARING, ORDER_STATUS.READY] },
     })
-      .sort({ placedAt: 1, createdAt: 1 })
       .limit(60)
       .populate('table')
       .select('orderNumber table items status placedAt priority estimatedReadyAt prepTimeTotal');
 
-    return orders.map((o) => ({
-      ...o.toObject(),
-      waitMinutes: this.waitMinutes(o),
-      priority: this.queue.score({ ...o.toObject(), placedAt: o.placedAt }) || 0,
-    }));
+    const pq = new KitchenPriorityQueue();
+    for (const o of orders) pq.enqueue(o.toObject());
+    const sorted = pq.drainSorted();
+    return sorted.map((plain, idx) => {
+      const score = this.queue.score(plain) || 0;
+      return {
+        ...plain,
+        waitMinutes: this.waitMinutes(plain),
+        priority: Math.round(score * 100) / 100,
+        priorityRank: idx + 1,
+        priorityLabel: this.queue.priorityLabel(score),
+      };
+    });
   }
 
   waitMinutes(order) {
@@ -116,6 +152,7 @@ class KitchenService {
   async accept(orderId, kitchenUser) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found');
+    if (kitchenUser) assertSameRestaurant(kitchenUser, order.restaurant, 'Access denied to this order');
     if (order.status === ORDER_STATUS.PENDING) order.setStatus(ORDER_STATUS.CONFIRMED, kitchenUser._id, 'Accepted by kitchen');
     order.setStatus(ORDER_STATUS.PREPARING, kitchenUser._id, 'Kitchen started preparing');
     order.acceptedBy = kitchenUser._id;
@@ -131,6 +168,7 @@ class KitchenService {
   async markItemReady(orderId, itemId, kitchenUser) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found');
+    if (kitchenUser) assertSameRestaurant(kitchenUser, order.restaurant, 'Access denied to this order');
     const item = order.items.id(itemId);
     if (!item) throw new ApiError(404, 'Order item not found');
     item.status = ORDER_STATUS.READY;
@@ -151,6 +189,7 @@ class KitchenService {
   async readyOrder(orderId, kitchenUser) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found');
+    if (kitchenUser) assertSameRestaurant(kitchenUser, order.restaurant, 'Access denied to this order');
     if (order.status === ORDER_STATUS.PREPARING) {
       order.setStatus(ORDER_STATUS.READY, kitchenUser._id, 'Order ready to serve');
       await order.save();

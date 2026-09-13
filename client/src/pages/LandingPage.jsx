@@ -530,10 +530,10 @@ export default function LandingPage() {
               </div>
 
               <Link
-                to="/menu"
+                to="/restaurants"
                 className={`${btn.lime} mt-8`}
               >
-                Browse sample menu
+                Browse restaurants
                 <ArrowRight size={16} />
               </Link>
             </motion.div>
@@ -1067,10 +1067,10 @@ export default function LandingPage() {
 
                 <li>
                   <Link
-                    to="/menu"
+                    to="/restaurants"
                     className="transition-colors hover:text-clay-700"
                   >
-                    Browse menus
+                    Browse restaurants
                   </Link>
                 </li>
               </ul>

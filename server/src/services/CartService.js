@@ -67,6 +67,13 @@ class CartService {
   async addItem(customerId, restaurantId, { menuItem, quantity = 1, options = {}, specialInstructions = '' }) {
     if (!menuItem) throw new ApiError(400, 'Menu item is required');
     const validated = await this.validateCartItem(menuItem, quantity, options);
+    // Tenant check: menu item must belong to the cart's restaurant.
+    // Prevents inserting Restaurant B's item into Restaurant A's cart.
+    const itemDoc = await this.menuItems.findById(menuItem).select('restaurant');
+    if (!itemDoc) throw new ApiError(404, 'Menu item not found', null, ErrorCodes.NOT_FOUND);
+    if (itemDoc.restaurant.toString() !== String(restaurantId)) {
+      throw new ApiError(400, 'Menu item does not belong to this restaurant');
+    }
     let cart = await this.getCart(customerId, restaurantId);
 
     const existing = cart.items.find(

@@ -173,7 +173,7 @@ export default function CheckoutPage() {
           icon={ShoppingBag}
           title="Nothing to checkout"
           copy="Your cart is empty. Add some dishes first."
-          action={<Link to="/" className="btn-primary">Browse menus</Link>}
+          action={<Link to="/restaurants" className="btn-primary">Browse restaurants</Link>}
         />
       </div>
     );

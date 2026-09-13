@@ -7,7 +7,17 @@ export const USER_ROLES = {
   KITCHEN: 'kitchen',
   ADMIN: 'admin',
   SUPER_ADMIN: 'super_admin',
+  MANAGER: 'manager',
 };
+
+// RESTAURANT_OWNER is the semantic name for the `admin` role.
+// The `admin` value is kept for backward compatibility with existing
+// Admin documents and JWTs. Use RESTAURANT_OWNER in new code/comments
+// to make ownership semantics explicit.
+export const RESTAURANT_OWNER_ROLE = USER_ROLES.ADMIN;
+
+// Roles allowed to operate a restaurant (owner + delegated manager).
+export const RESTAURANT_OPERATOR_ROLES = [USER_ROLES.ADMIN, USER_ROLES.MANAGER];
 
 export const USER_ROLE_VALUES = Object.values(USER_ROLES);
 

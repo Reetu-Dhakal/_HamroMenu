@@ -73,10 +73,9 @@ export default function KitchenDashboardPage() {
     }
   }
 
-  const sorted = (queue || []).sort((a, b) => {
-    const order = { pending: 0, confirmed: 1, preparing: 2, ready: 3 };
-    return (order[a.status] ?? 0) - (order[b.status] ?? 0) || new Date(a.placedAt) - new Date(b.placedAt);
-  });
+  // Backend is the source of truth for priority: KitchenPriorityQueue returns
+  // highest-urgency-first with priorityRank. Preserve that order here.
+  const sorted = queue || [];
 
   return (
     <div className="min-h-dvh bg-cream-50 pb-20">

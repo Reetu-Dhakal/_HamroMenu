@@ -75,6 +75,38 @@ class CustomerService {
     return this.reviews.find({ customer: customerId }, { sort: { createdAt: -1 } });
   }
 
+  /** Customers may only edit/delete their OWN reviews. */
+  async updateMyReview(customerId, reviewId, updates) {
+    const review = await this.reviews.findById(reviewId);
+    if (!review) throw new ApiError(404, 'Review not found', null, ErrorCodes.NOT_FOUND);
+    if (review.customer.toString() !== String(customerId)) {
+      throw new ApiError(403, 'You can only edit your own reviews');
+    }
+    const allowed = ['rating', 'title', 'comment', 'tags', 'images'];
+    const clean = {};
+    for (const k of allowed) if (updates[k] !== undefined) clean[k] = updates[k];
+    if (clean.rating != null && (clean.rating < 1 || clean.rating > 5)) {
+      throw new ApiError(400, 'Rating must be between 1 and 5');
+    }
+    // Re-require moderation after edit
+    clean.isApproved = false;
+    const BaseRepo = (await import('../repositories/BaseRepository.js')).default;
+    const ReviewModel = (await import('../models/Review.js')).default;
+    return new BaseRepo(ReviewModel).findByIdAndUpdate(reviewId, clean);
+  }
+
+  async deleteMyReview(customerId, reviewId) {
+    const review = await this.reviews.findById(reviewId);
+    if (!review) throw new ApiError(404, 'Review not found', null, ErrorCodes.NOT_FOUND);
+    if (review.customer.toString() !== String(customerId)) {
+      throw new ApiError(403, 'You can only delete your own reviews');
+    }
+    const BaseRepo = (await import('../repositories/BaseRepository.js')).default;
+    const ReviewModel = (await import('../models/Review.js')).default;
+    await new BaseRepo(ReviewModel).findByIdAndDelete(reviewId);
+    return { success: true };
+  }
+
   async listStaff(restaurantId) {
     return this.users.find({ restaurant: restaurantId, role: { $ne: USER_ROLES.ADMIN } }, { sort: { createdAt: -1 } });
   }

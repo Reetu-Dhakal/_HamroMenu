@@ -14,7 +14,7 @@ import staffAdminController from '../controllers/StaffAdminController.js';
 import reviewController from '../controllers/ReviewController.js';
 import recommendationController from '../controllers/RecommendationController.js';
 import { auth, optionalAuth, authorize } from '../middleware/auth.js';
-import { ensureRestaurantContext } from '../middleware/restaurantAuth.js';
+import { ensureRestaurantContext, ensureOrderBelongsToRestaurant } from '../middleware/restaurantAuth.js';
 import { authRateLimiter, orderRateLimiter } from '../middleware/rateLimit.js';
 import { USER_ROLES } from '../models/UserBase.js';
 import multer from 'multer';
@@ -22,6 +22,7 @@ import { body } from 'express-validator';
 import Subscription from '../models/Subscription.js';
 import SubscriptionPlan from '../models/SubscriptionPlan.js';
 import Invoice from '../models/Invoice.js';
+import Restaurant from '../models/Restaurant.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -32,7 +33,10 @@ const router = Router();
 // Health
 router.get('/health', (_req, res) => res.json({ success: true, status: 'ok', ts: new Date().toISOString() }));
 
-// ─── Public: restaurant + menu ───────────────────────────────────────
+// ─── Public: restaurant discovery + menu ─────────────────────────────
+// IMPORTANT: /discover and /ranked must be registered BEFORE /:restaurantId
+router.get('/restaurants/discover', restaurantController.discover);
+router.get('/restaurants/ranked', restaurantController.ranked);
 router.get('/restaurants/by-slug/:slug', restaurantController.getBySlug);
 router.get('/restaurants/:restaurantId', restaurantController.getById);
 router.get('/restaurants/:restaurantId/menu', menuController.getMenu);
@@ -51,23 +55,24 @@ router.post('/auth/logout', auth, authController.logout);
 router.get('/auth/me', auth, authController.me);
 router.post('/auth/forgot-password', authRateLimiter, authController.forgotPassword);
 router.post('/auth/reset-password', authRateLimiter, authController.resetPassword);
-router.post('/auth/register/staff', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.STAFF), staffAdminController.registerStaff);
-router.post('/auth/register/kitchen', auth, authorize(USER_ROLES.ADMIN), staffAdminController.registerKitchen);
-router.post('/auth/register/restaurant-owner', authRateLimiter, authController.registerRestaurantOwner);
-router.post('/auth/register/super-admin', authRateLimiter, authController.registerSuperAdmin);
+router.post('/auth/register/staff', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), staffAdminController.registerStaff);
+router.post('/auth/register/kitchen', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), staffAdminController.registerKitchen);
+router.post('/auth/register/manager', auth, authorize(USER_ROLES.ADMIN), staffAdminController.registerManager);
+router.post('/auth/register/restaurant-owner', authRateLimiter, authController.registerRestaurantOwnerRules(), authController.registerRestaurantOwner);
+router.post('/auth/register/super-admin', authRateLimiter, optionalAuth, authController.registerSuperAdmin);
 
 // ─── Restaurant registration + verification ───────────────────────────
 router.post('/restaurants', auth, authorize(USER_ROLES.SUPER_ADMIN), restaurantController.registerRestaurant);
 router.get('/restaurants', auth, authorize(USER_ROLES.SUPER_ADMIN), restaurantController.listRestaurants);
 router.patch('/restaurants/:restaurantId/verify', auth, authorize(USER_ROLES.SUPER_ADMIN), restaurantController.verifyRestaurant);
-router.patch('/restaurants/:restaurantId/status', auth, authorize(USER_ROLES.ADMIN), restaurantController.updateRestaurantStatus);
+router.patch('/restaurants/:restaurantId/status', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN), ensureRestaurantContext, restaurantController.updateRestaurantStatus);
 
 // ─── Uploads (cloudinary) ────────────────────────────────────────────
 router.post('/upload', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.STAFF, USER_ROLES.KITCHEN), upload.single('file'), restaurantController.uploadImage);
 
 // ─── QR codes ────────────────────────────────────────────────────────
-router.get('/restaurants/:restaurantId/tables/:tableId/qr', auth, restaurantController.qrForTable);
-router.post('/restaurants/:restaurantId/tables/:tableId/qr/regenerate', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.STAFF), restaurantController.regenerateQR);
+router.get('/restaurants/:restaurantId/tables/:tableId/qr', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.STAFF), ensureRestaurantContext, restaurantController.qrForTable);
+router.post('/restaurants/:restaurantId/tables/:tableId/qr/regenerate', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.STAFF), ensureRestaurantContext, restaurantController.regenerateQR);
 
 // ─── Cart (all require auth) ─────────────────────────────────────────
 router.use('/cart', auth);
@@ -102,6 +107,8 @@ router.put('/profile', auth, customerController.updateProfile);
 router.get('/profile/favorites', auth, customerController.favorites);
 router.post('/profile/favorites/:menuItemId', auth, customerController.toggleFavorite);
 router.get('/profile/reviews', auth, customerController.myReviews);
+router.patch('/profile/reviews/:id', auth, authorize(USER_ROLES.CUSTOMER), customerController.updateMyReview);
+router.delete('/profile/reviews/:id', auth, authorize(USER_ROLES.CUSTOMER), customerController.deleteMyReview);
 router.post('/restaurants/:restaurantId/reviews', auth, ensureRestaurantContext, customerController.addReview);
 
 // ─── Public reviews ──────────────────────────────────────────────────
@@ -229,21 +236,21 @@ router.put('/super-admin/plans/:id', auth, authorize(USER_ROLES.SUPER_ADMIN), as
 }));
 
 // ─── Staff dashboard ─────────────────────────────────────────────────
-router.get('/staff/:restaurantId/dashboard', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.dashboard);
-router.get('/staff/:restaurantId/orders', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.activeOrders);
-router.get('/staff/:restaurantId/tables', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.tables);
-router.post('/staff/orders/:orderId/confirm', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.confirm);
-router.post('/staff/orders/:orderId/send-to-kitchen', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.sendToKitchen);
-router.post('/staff/orders/:orderId/serve', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.serveFood);
-router.get('/staff/orders/:orderId/bill', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.bill);
-router.post('/staff/orders/:orderId/collect-cash', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN), staffController.collectCash);
+router.get('/staff/:restaurantId/dashboard', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, staffController.dashboard);
+router.get('/staff/:restaurantId/orders', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, staffController.activeOrders);
+router.get('/staff/:restaurantId/tables', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, staffController.tables);
+router.post('/staff/orders/:orderId/confirm', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, staffController.confirm);
+router.post('/staff/orders/:orderId/send-to-kitchen', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, staffController.sendToKitchen);
+router.post('/staff/orders/:orderId/serve', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, staffController.serveFood);
+router.get('/staff/orders/:orderId/bill', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, staffController.bill);
+router.post('/staff/orders/:orderId/collect-cash', auth, authorize(USER_ROLES.STAFF, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, staffController.collectCash);
 
 // ─── Kitchen dashboard ───────────────────────────────────────────────
-router.get('/kitchen/:restaurantId/queue', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN, USER_ROLES.STAFF), kitchenController.queue);
-router.get('/kitchen/:restaurantId/stats', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN), kitchenController.stats);
-router.post('/kitchen/orders/:orderId/accept', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN), kitchenController.accept);
-router.post('/kitchen/orders/:orderId/ready', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN), kitchenController.readyOrder);
-router.post('/kitchen/orders/:orderId/items/:itemId/ready', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN), kitchenController.markItemReady);
+router.get('/kitchen/:restaurantId/queue', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.STAFF), ensureRestaurantContext, kitchenController.queue);
+router.get('/kitchen/:restaurantId/stats', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, kitchenController.stats);
+router.post('/kitchen/orders/:orderId/accept', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, kitchenController.accept);
+router.post('/kitchen/orders/:orderId/ready', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, kitchenController.readyOrder);
+router.post('/kitchen/orders/:orderId/items/:itemId/ready', auth, authorize(USER_ROLES.KITCHEN, USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureOrderBelongsToRestaurant, kitchenController.markItemReady);
 
 // ─── Admin (restaurant owner) ────────────────────────────────────────
 router.get('/admin/restaurants', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, adminController.restaurants);
@@ -253,8 +260,9 @@ router.get('/admin/:restaurantId/overview', auth, authorize(USER_ROLES.ADMIN), e
 router.get('/admin/:restaurantId/reports', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, adminController.reports);
 router.get('/admin/:restaurantId/revenue', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, adminController.revenue);
 router.get('/admin/:restaurantId/payments', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, paymentController.listForRestaurant);
-router.post('/admin/:restaurantId/tables', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.STAFF), ensureRestaurantContext, adminController.addTable);
-router.get('/admin/:restaurantId/tables', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.STAFF), ensureRestaurantContext, adminController.listTables);
+router.post('/admin/:restaurantId/tables', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.STAFF), ensureRestaurantContext, adminController.addTable);
+router.get('/admin/:restaurantId/tables', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.STAFF), ensureRestaurantContext, adminController.listTables);
+router.delete('/admin/:restaurantId/tables/:tableId', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, restaurantController.deleteTable);
 router.get('/admin/:restaurantId/coupons', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, staffAdminController.listCoupons);
 router.post('/admin/:restaurantId/coupons', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, staffAdminController.createCoupon);
 router.patch('/admin/coupons/:id', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, staffAdminController.updateCoupon);
@@ -263,14 +271,14 @@ router.get('/admin/:restaurantId/staff', auth, authorize(USER_ROLES.ADMIN), ensu
 router.get('/admin/:restaurantId/kitchen', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, staffAdminController.listKitchen);
 router.get('/admin/:restaurantId/qrcodes', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, staffAdminController.listQR);
 
-// Admin menu management
-router.post('/admin/restaurants/:restaurantId/categories', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, menuController.addCategory);
-router.patch('/admin/categories/:id', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, menuController.updateCategory);
-router.delete('/admin/categories/:id', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, menuController.removeCategory);
-router.post('/admin/restaurants/:restaurantId/items', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, menuController.addItem);
-router.put('/admin/items/:id', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, menuController.updateItem);
-router.patch('/admin/items/:id/availability', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, menuController.toggleAvailability);
-router.delete('/admin/items/:id', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, menuController.removeItem);
+// Admin menu management (managers may operate the menu; billing stays owner-only)
+router.post('/admin/restaurants/:restaurantId/categories', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, menuController.addCategory);
+router.patch('/admin/categories/:id', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, menuController.updateCategory);
+router.delete('/admin/categories/:id', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, menuController.removeCategory);
+router.post('/admin/restaurants/:restaurantId/items', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, menuController.addItem);
+router.put('/admin/items/:id', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, menuController.updateItem);
+router.patch('/admin/items/:id/availability', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, menuController.toggleAvailability);
+router.delete('/admin/items/:id', auth, authorize(USER_ROLES.ADMIN, USER_ROLES.MANAGER), ensureRestaurantContext, menuController.removeItem);
 
 // Admin restaurant profile update
 router.patch('/admin/:restaurantId/profile', auth, authorize(USER_ROLES.ADMIN), ensureRestaurantContext, asyncHandler(async (req, res) => {

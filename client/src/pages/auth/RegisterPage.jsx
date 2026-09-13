@@ -17,6 +17,9 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [restaurant, setRestaurant] = useState('');
+  const [city, setCity] = useState('');
+  const [regNo, setRegNo] = useState('');
+  const [pan, setPan] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,7 +32,13 @@ export default function RegisterPage() {
     setError('');
     setBusy(true);
     try {
-      const user = await registerRestaurant({ name, email, phone, password, restaurant });
+      const user = await registerRestaurant({
+        name, email, phone, password,
+        restaurantName: restaurant,
+        address: city ? { city } : undefined,
+        businessRegistrationNumber: regNo || undefined,
+        panNumber: pan || undefined,
+      });
       toast.success('Restaurant account created — welcome!');
       const dest = location.state?.from || ROLE_HOME[user.role] || '/admin';
       nav(dest, { replace: true });
@@ -84,12 +93,29 @@ export default function RegisterPage() {
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-[12.5px] font-bold text-ink-soft">Restaurant name <span className="text-ink-faint">(optional)</span></span>
+            <span className="mb-1.5 block text-[12.5px] font-bold text-ink-soft">Restaurant name</span>
             <div className="relative">
               <Store size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
-              <input value={restaurant} onChange={(e) => setRestaurant(e.target.value)} className="input !w-full pl-10" placeholder="Momo House" />
+              <input required value={restaurant} onChange={(e) => setRestaurant(e.target.value)} className="input !w-full pl-10" placeholder="Momo House" />
             </div>
           </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-[12.5px] font-bold text-ink-soft">City <span className="text-ink-faint">(optional)</span></span>
+            <input value={city} onChange={(e) => setCity(e.target.value)} className="input !w-full" placeholder="Kathmandu" />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1.5 block text-[12.5px] font-bold text-ink-soft">Reg. number <span className="text-ink-faint">(optional)</span></span>
+              <input value={regNo} onChange={(e) => setRegNo(e.target.value)} className="input !w-full" placeholder="123456" />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-[12.5px] font-bold text-ink-soft">PAN <span className="text-ink-faint">(optional)</span></span>
+              <input value={pan} onChange={(e) => setPan(e.target.value)} className="input !w-full" placeholder="123456789" />
+            </label>
+          </div>
+          <p className="text-[12px] leading-relaxed text-ink-faint">Your restaurant is created immediately with PENDING verification. A Super Admin reviews it before it goes live for customers.</p>
 
           {error && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-[12.5px] font-semibold text-red-700">{error}</p>}
 

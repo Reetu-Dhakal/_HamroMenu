@@ -2,6 +2,7 @@ import RestaurantRepository from '../repositories/RestaurantRepository.js';
 import Order, { ORDER_STATUS } from '../models/Order.js';
 import PaymentService from './PaymentService.js';
 import notificationService from './NotificationService.js';
+import { assertSameRestaurant } from '../middleware/restaurantAuth.js';
 import ApiError, { ErrorCodes } from '../utils/ApiError.js';
 
 class StaffService {
@@ -34,6 +35,7 @@ class StaffService {
   async sendToKitchen(orderId, staff) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found');
+    if (staff) assertSameRestaurant(staff, order.restaurant, 'Access denied to this order');
     if (order.status === ORDER_STATUS.PENDING) {
       order.setStatus(ORDER_STATUS.CONFIRMED, staff?._id, 'Auto-confirmed');
     }
@@ -58,6 +60,7 @@ class StaffService {
   async serveOrder(orderId, staff) {
     const order = await Order.findById(orderId);
     if (!order) throw new ApiError(404, 'Order not found');
+    if (staff) assertSameRestaurant(staff, order.restaurant, 'Access denied to this order');
     if (order.status === ORDER_STATUS.READY) {
       order.setStatus(ORDER_STATUS.SERVED, staff?._id, 'Served by staff');
       order.servedBy = staff?._id;

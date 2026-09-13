@@ -9,9 +9,15 @@ import ApiError from '../utils/ApiError.js';
 class StaffAdminController {
   async registerStaff(req, res, next) {
     asyncHandler(async () => {
+      const restaurantId = req.body.restaurant || req.user.restaurant;
+      if (restaurantId) {
+        const FeatureGateService = (await import('../services/FeatureGateService.js')).default;
+        const usage = await FeatureGateService.staffUsageDetail(restaurantId);
+        if (!usage.allowed) return next(new ApiError(403, usage.reason));
+      }
       const data = await authService.registerStaff({
         ...req.body,
-        restaurant: req.body.restaurant || req.params.restaurantId,
+        restaurant: restaurantId,
       });
       return ApiResponse.send(res, 201, data, 'Staff account created');
     })(req, res, next);
@@ -19,11 +25,34 @@ class StaffAdminController {
 
   async registerKitchen(req, res, next) {
     asyncHandler(async () => {
+      // Enforce staff plan limit before creating kitchen accounts
+      const restaurantId = req.body.restaurant || req.user.restaurant;
+      if (restaurantId) {
+        const FeatureGateService = (await import('../services/FeatureGateService.js')).default;
+        const usage = await FeatureGateService.staffUsageDetail(restaurantId);
+        if (!usage.allowed) return next(new ApiError(403, usage.reason));
+      }
       const data = await authService.registerKitchen({
         ...req.body,
-        restaurant: req.body.restaurant || req.params.restaurantId,
+        restaurant: req.body.restaurant || req.user.restaurant,
       });
       return ApiResponse.send(res, 201, data, 'Kitchen account created');
+    })(req, res, next);
+  }
+
+  async registerManager(req, res, next) {
+    asyncHandler(async () => {
+      const restaurantId = req.body.restaurant || req.user.restaurant;
+      if (restaurantId) {
+        const FeatureGateService = (await import('../services/FeatureGateService.js')).default;
+        const usage = await FeatureGateService.staffUsageDetail(restaurantId);
+        if (!usage.allowed) return next(new ApiError(403, usage.reason));
+      }
+      const data = await authService.registerManager({
+        ...req.body,
+        restaurant: restaurantId,
+      });
+      return ApiResponse.send(res, 201, data, 'Manager account created');
     })(req, res, next);
   }
 
